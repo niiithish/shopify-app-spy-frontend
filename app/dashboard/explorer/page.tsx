@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -27,7 +27,6 @@ import {
   MessageSquare,
   ExternalLink,
   RotateCcw,
-  Filter,
   Flame,
   ArrowUpDown,
   ArrowUp,
@@ -35,20 +34,9 @@ import {
   Search,
   X,
   SlidersHorizontal,
+  Loader2,
 } from "lucide-react"
-
-interface AppResult {
-  id: number
-  keyword: string
-  title: string
-  url: string
-  rating: string
-  review_count: string
-  price: string
-  relevance_score: number
-  recent_reviews_30_days: number
-  trending_score: number
-}
+import { useApps, useKeywords } from "@/hooks/use-queries"
 
 interface Filters {
   keywords: string[]
@@ -71,6 +59,27 @@ type SortKey =
 
 type SortDir = "asc" | "desc"
 
+type PageSize = "all" | "10" | "50" | "100" | "250" | "500"
+
+// SortIcon component - defined outside to avoid creating during render
+function SortIcon({ column, sortKey, sortDir }: { column: SortKey; sortKey: SortKey | null; sortDir: SortDir }) {
+  if (sortKey !== column) return <ArrowUpDown className="size-3 opacity-40" />
+  return sortDir === "asc" ? (
+    <ArrowUp className="size-3 text-primary" />
+  ) : (
+    <ArrowDown className="size-3 text-primary" />
+  )
+}
+
+const PAGE_SIZE_OPTIONS: { value: PageSize; label: string }[] = [
+  { value: "all", label: "Show All" },
+  { value: "10", label: "Top 10" },
+  { value: "50", label: "Top 50" },
+  { value: "100", label: "Top 100" },
+  { value: "250", label: "Top 250" },
+  { value: "500", label: "Top 500" },
+]
+
 const DEFAULT_FILTERS: Filters = {
   keywords: [],
   search: "",
@@ -81,55 +90,45 @@ const DEFAULT_FILTERS: Filters = {
 }
 
 export default function ExplorerPage() {
-  const [apps, setApps] = useState<AppResult[]>([])
-  const [availableKeywords, setAvailableKeywords] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
-
   const [filters, setFilters] = useState<Filters>({ ...DEFAULT_FILTERS })
-
   const [sortKey, setSortKey] = useState<SortKey | null>(null)
   const [sortDir, setSortDir] = useState<SortDir>("desc")
+  const [pageSize, setPageSize] = useState<PageSize>("all")
 
-  // ── Data fetching ──────────────────────────────────────────────────
+  // ── Data fetching with TanStack Query ───────────────────────────────
 
-  const fetchKeywords = useCallback(async () => {
-    try {
-      const res = await fetch("/api/keywords")
-      if (!res.ok) throw new Error("Failed to fetch keywords")
-      const data = await res.json()
-      setAvailableKeywords(data.keywords)
-    } catch (err) {
-      console.error("Error fetching keywords:", err)
-    }
-  }, [])
+  const { data: availableKeywords = [], isLoading: keywordsLoading } = useKeywords()
 
-  const fetchApps = useCallback(async () => {
-    try {
-      setLoading(true)
-      const params = new URLSearchParams()
-      if (filters.keywords.length > 0) params.set("keywords", filters.keywords.join(","))
-      if (filters.minRating) params.set("minRating", filters.minRating)
-      if (filters.minReviews) params.set("minRecentReviews", filters.minReviews)
-      if (filters.minTrending) params.set("minTrendingScore", filters.minTrending)
-      if (filters.priceType !== "all") params.set("priceType", filters.priceType)
+  // Build query filters for server-side filtering
+  const queryFilters = useMemo(() => {
+    const result: {
+      keywords?: string[]
+      minRating?: number
+      minRecentReviews?: number
+      minTrendingScore?: number
+      priceType?: "all" | "free" | "paid"
+    } = {}
 
-      const res = await fetch(`/api/apps?${params.toString()}`)
-      if (!res.ok) throw new Error("Failed to fetch apps")
-      const data = await res.json()
-      setApps(data.apps)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred")
-    } finally {
-      setLoading(false)
-    }
-  }, [filters.keywords, filters.minRating, filters.minReviews, filters.minTrending, filters.priceType])
+    if (filters.keywords.length > 0) result.keywords = filters.keywords
+    if (filters.minRating) result.minRating = parseFloat(filters.minRating)
+    if (filters.minReviews) result.minRecentReviews = parseInt(filters.minReviews, 10)
+    if (filters.minTrending) result.minTrendingScore = parseFloat(filters.minTrending)
+    if (filters.priceType !== "all") result.priceType = filters.priceType
 
-  useEffect(() => {
-    fetchKeywords()
-    fetchApps()
-  }, [fetchKeywords, fetchApps])
+    return result
+  }, [filters])
+
+  const hasServerFilters = Object.keys(queryFilters).length > 0
+
+  const {
+    data: apps = [],
+    isLoading: appsLoading,
+    isError,
+    error,
+    isFetching,
+    refetch,
+  } = useApps(hasServerFilters ? queryFilters : undefined)
 
   // ── Sorting ────────────────────────────────────────────────────────
 
@@ -142,15 +141,7 @@ export default function ExplorerPage() {
     }
   }
 
-  const SortIcon = ({ column }: { column: SortKey }) => {
-    if (sortKey !== column) return <ArrowUpDown className="size-3 opacity-40" />
-    return sortDir === "asc" ? (
-      <ArrowUp className="size-3 text-primary" />
-    ) : (
-      <ArrowDown className="size-3 text-primary" />
-    )
-  }
-
+  // Apply client-side search filter, sorting, and pagination
   const sortedApps = useMemo(() => {
     let result = [...apps]
 
@@ -212,6 +203,13 @@ export default function ExplorerPage() {
     return result
   }, [apps, sortKey, sortDir, filters.search])
 
+  // Apply pagination
+  const displayedApps = useMemo(() => {
+    if (pageSize === "all") return sortedApps
+    const limit = parseInt(pageSize, 10)
+    return sortedApps.slice(0, limit)
+  }, [sortedApps, pageSize])
+
   // ── Filter helpers ─────────────────────────────────────────────────
 
   const toggleKeyword = (keyword: string) => {
@@ -227,6 +225,7 @@ export default function ExplorerPage() {
     setFilters({ ...DEFAULT_FILTERS })
     setSortKey(null)
     setSortDir("desc")
+    setPageSize("all")
   }
 
   const hasActiveFilters =
@@ -235,7 +234,8 @@ export default function ExplorerPage() {
     filters.minRating !== "" ||
     filters.minReviews !== "" ||
     filters.minTrending !== "" ||
-    filters.priceType !== "all"
+    filters.priceType !== "all" ||
+    pageSize !== "all"
 
   const activeFilterCount = [
     filters.keywords.length > 0,
@@ -247,11 +247,11 @@ export default function ExplorerPage() {
 
   // ── Render ─────────────────────────────────────────────────────────
 
-  if (error) {
+  if (isError) {
     return (
       <Alert variant="destructive">
         <AlertTitle>Error</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
+        <AlertDescription>{error?.message || "An error occurred while fetching apps"}</AlertDescription>
       </Alert>
     )
   }
@@ -268,6 +268,20 @@ export default function ExplorerPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Results Limit Selector */}
+          <Select value={pageSize} onValueChange={(v) => setPageSize(v as PageSize)}>
+            <SelectTrigger className="h-8 w-[130px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PAGE_SIZE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" onClick={resetFilters} className="text-muted-foreground">
               <RotateCcw className="mr-1 size-3.5" />
@@ -320,21 +334,29 @@ export default function ExplorerPage() {
                 <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Keywords
                 </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {availableKeywords.map((keyword) => (
-                    <Badge
-                      key={keyword}
-                      variant={filters.keywords.includes(keyword) ? "default" : "outline"}
-                      className="cursor-pointer capitalize text-xs transition-all hover:scale-105"
-                      onClick={() => toggleKeyword(keyword)}
-                    >
-                      {keyword}
-                      {filters.keywords.includes(keyword) && (
-                        <X className="ml-1 size-3" />
-                      )}
-                    </Badge>
-                  ))}
-                </div>
+                {keywordsLoading ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <Skeleton key={i} className="h-6 w-16" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {(availableKeywords as string[]).map((keyword) => (
+                      <Badge
+                        key={keyword}
+                        variant={filters.keywords.includes(keyword) ? "default" : "outline"}
+                        className="cursor-pointer capitalize text-xs transition-all hover:scale-105"
+                        onClick={() => toggleKeyword(keyword)}
+                      >
+                        {keyword}
+                        {filters.keywords.includes(keyword) && (
+                          <X className="ml-1 size-3" />
+                        )}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -407,7 +429,7 @@ export default function ExplorerPage() {
       {/* ── Active keyword pills (always visible when filters collapsed) */}
       {!filtersOpen && filters.keywords.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
-          <Filter className="size-3.5 text-muted-foreground" />
+          <Flame className="size-3.5 text-muted-foreground" />
           {filters.keywords.map((kw) => (
             <Badge
               key={kw}
@@ -427,27 +449,50 @@ export default function ExplorerPage() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">
-              {loading ? "Loading..." : `${sortedApps.length} apps`}
+              {appsLoading ? (
+                "Loading..."
+              ) : (
+                <>
+                  {displayedApps.length} apps
+                  {pageSize !== "all" && displayedApps.length < sortedApps.length && (
+                    <span className="text-muted-foreground"> (of {sortedApps.length})</span>
+                  )}
+                  {isFetching && !appsLoading && (
+                    <Loader2 className="ml-2 inline size-4 animate-spin" />
+                  )}
+                </>
+              )}
             </CardTitle>
-            {sortKey && (
-              <button
-                onClick={() => { setSortKey(null); setSortDir("desc") }}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            <div className="flex items-center gap-2">
+              {sortKey && (
+                <button
+                  onClick={() => { setSortKey(null); setSortDir("desc") }}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="size-3" />
+                  Clear sort
+                </button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="h-7"
               >
-                <X className="size-3" />
-                Clear sort
-              </button>
-            )}
+                {isFetching ? <Loader2 className="size-3 animate-spin" /> : "Refresh"}
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="px-0 pb-0">
-          {loading ? (
+          {appsLoading ? (
             <div className="flex flex-col gap-3 px-6 pb-6">
               {Array.from({ length: 8 }).map((_, i) => (
                 <Skeleton key={i} className="h-10 w-full" />
               ))}
             </div>
-          ) : sortedApps.length === 0 ? (
+          ) : displayedApps.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
               <Search className="size-10 opacity-40" />
               <p className="text-sm">No apps match your filters</p>
@@ -466,7 +511,7 @@ export default function ExplorerPage() {
                         onClick={() => handleSort("title")}
                       >
                         App
-                        <SortIcon column="title" />
+                        <SortIcon column="title" sortKey={sortKey} sortDir={sortDir} />
                       </button>
                     </TableHead>
                     <TableHead>
@@ -475,7 +520,7 @@ export default function ExplorerPage() {
                         onClick={() => handleSort("keyword")}
                       >
                         Keyword
-                        <SortIcon column="keyword" />
+                        <SortIcon column="keyword" sortKey={sortKey} sortDir={sortDir} />
                       </button>
                     </TableHead>
                     <TableHead>
@@ -484,7 +529,7 @@ export default function ExplorerPage() {
                         onClick={() => handleSort("rating")}
                       >
                         Rating
-                        <SortIcon column="rating" />
+                        <SortIcon column="rating" sortKey={sortKey} sortDir={sortDir} />
                       </button>
                     </TableHead>
                     <TableHead>
@@ -493,7 +538,7 @@ export default function ExplorerPage() {
                         onClick={() => handleSort("review_count")}
                       >
                         Reviews
-                        <SortIcon column="review_count" />
+                        <SortIcon column="review_count" sortKey={sortKey} sortDir={sortDir} />
                       </button>
                     </TableHead>
                     <TableHead>
@@ -502,7 +547,7 @@ export default function ExplorerPage() {
                         onClick={() => handleSort("recent_reviews_30_days")}
                       >
                         Recent (30d)
-                        <SortIcon column="recent_reviews_30_days" />
+                        <SortIcon column="recent_reviews_30_days" sortKey={sortKey} sortDir={sortDir} />
                       </button>
                     </TableHead>
                     <TableHead>
@@ -511,7 +556,7 @@ export default function ExplorerPage() {
                         onClick={() => handleSort("trending_score")}
                       >
                         Trending
-                        <SortIcon column="trending_score" />
+                        <SortIcon column="trending_score" sortKey={sortKey} sortDir={sortDir} />
                       </button>
                     </TableHead>
                     <TableHead>
@@ -520,7 +565,7 @@ export default function ExplorerPage() {
                         onClick={() => handleSort("price")}
                       >
                         Price
-                        <SortIcon column="price" />
+                        <SortIcon column="price" sortKey={sortKey} sortDir={sortDir} />
                       </button>
                     </TableHead>
                     <TableHead>
@@ -529,14 +574,14 @@ export default function ExplorerPage() {
                         onClick={() => handleSort("relevance_score")}
                       >
                         Relevance
-                        <SortIcon column="relevance_score" />
+                        <SortIcon column="relevance_score" sortKey={sortKey} sortDir={sortDir} />
                       </button>
                     </TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedApps.map((app) => (
+                  {displayedApps.map((app) => (
                     <TableRow key={app.id} className="group">
                       <TableCell className="max-w-[240px] truncate font-medium">
                         {app.title}
