@@ -27,8 +27,8 @@ interface AppResult {
   review_count: string
   price: string
   relevance_score: number
-  launched: string
   recent_reviews_30_days: number
+  trending_score: number
 }
 
 export default function DashboardPage() {

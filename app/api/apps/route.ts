@@ -25,6 +25,12 @@ export async function GET(request: Request) {
     const maxRecentReviews = searchParams.get("maxRecentReviews")
       ? parseInt(searchParams.get("maxRecentReviews")!)
       : undefined
+    const minTrendingScore = searchParams.get("minTrendingScore")
+      ? parseFloat(searchParams.get("minTrendingScore")!)
+      : undefined
+    const maxTrendingScore = searchParams.get("maxTrendingScore")
+      ? parseFloat(searchParams.get("maxTrendingScore")!)
+      : undefined
     const priceType = searchParams.get("priceType") as "free" | "paid" | "all" | undefined
 
     // If no filters, return all apps
@@ -36,6 +42,8 @@ export async function GET(request: Request) {
       maxReviews ||
       minRecentReviews ||
       maxRecentReviews ||
+      minTrendingScore ||
+      maxTrendingScore ||
       priceType
 
     let apps
@@ -48,6 +56,8 @@ export async function GET(request: Request) {
         maxReviews,
         minRecentReviews,
         maxRecentReviews,
+        minTrendingScore,
+        maxTrendingScore,
         priceType,
       })
     } else {

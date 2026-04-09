@@ -11,8 +11,8 @@ export interface AppResult {
   review_count: string
   price: string
   relevance_score: number
-  launched: string
   recent_reviews_30_days: number
+  trending_score: number
   created_at: string
   updated_at: string
 }
@@ -123,8 +123,8 @@ function parseRow(row: TursoValue[]): AppResult {
     review_count: getString(row[5]),
     price: getString(row[6]),
     relevance_score: getNumber(row[7]),
-    launched: getString(row[8]),
-    recent_reviews_30_days: getInt(row[9]),
+    recent_reviews_30_days: getInt(row[8]),
+    trending_score: getNumber(row[9]),
     created_at: getString(row[10]),
     updated_at: getString(row[11]),
   }
@@ -133,7 +133,7 @@ function parseRow(row: TursoValue[]): AppResult {
 export async function getAllApps(): Promise<AppResult[]> {
   const data = await executeQuery(
     `SELECT id, keyword, title, url, rating, review_count, price, 
-            relevance_score, launched, recent_reviews_30_days, created_at, updated_at
+            relevance_score, recent_reviews_30_days, trending_score, created_at, updated_at
      FROM search_results
      ORDER BY relevance_score DESC`
   )
@@ -145,7 +145,7 @@ export async function getAllApps(): Promise<AppResult[]> {
 export async function getAppsByKeyword(keyword: string): Promise<AppResult[]> {
   const data = await executeQuery(
     `SELECT id, keyword, title, url, rating, review_count, price, 
-            relevance_score, launched, recent_reviews_30_days, created_at, updated_at
+            relevance_score, recent_reviews_30_days, trending_score, created_at, updated_at
      FROM search_results
      WHERE keyword = ?
      ORDER BY relevance_score DESC`,
@@ -207,10 +207,12 @@ export async function searchApps(
     minRecentReviews?: number
     maxRecentReviews?: number
     priceType?: "free" | "paid" | "all"
+    minTrendingScore?: number
+    maxTrendingScore?: number
   }
 ): Promise<AppResult[]> {
   let sql = `SELECT id, keyword, title, url, rating, review_count, price, 
-                    relevance_score, launched, recent_reviews_30_days, created_at, updated_at
+                    relevance_score, recent_reviews_30_days, trending_score, created_at, updated_at
              FROM search_results`
   const conditions: string[] = []
   const args: (string | number | null)[] = []
@@ -249,6 +251,16 @@ export async function searchApps(
   if (filters.maxRecentReviews !== undefined && filters.maxRecentReviews > 0) {
     conditions.push("recent_reviews_30_days <= ?")
     args.push(filters.maxRecentReviews)
+  }
+
+  if (filters.minTrendingScore !== undefined && filters.minTrendingScore > 0) {
+    conditions.push("trending_score >= ?")
+    args.push(filters.minTrendingScore)
+  }
+
+  if (filters.maxTrendingScore !== undefined && filters.maxTrendingScore < 100) {
+    conditions.push("trending_score <= ?")
+    args.push(filters.maxTrendingScore)
   }
 
   if (filters.priceType === "free") {

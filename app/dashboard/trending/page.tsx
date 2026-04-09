@@ -25,14 +25,17 @@ interface AppResult {
   review_count: string
   price: string
   relevance_score: number
-  launched: string
   recent_reviews_30_days: number
+  trending_score: number
 }
+
+type SortMode = "recent_reviews" | "trending_score"
 
 export default function TrendingPage() {
   const [apps, setApps] = useState<AppResult[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [sortMode, setSortMode] = useState<SortMode>("trending_score")
 
   useEffect(() => {
     async function fetchData() {
@@ -41,9 +44,7 @@ export default function TrendingPage() {
         const res = await fetch("/api/apps")
         if (!res.ok) throw new Error("Failed to fetch apps")
         const data = await res.json()
-        // Sort by recent reviews (trending indicator)
-        const sorted = data.apps.sort((a: AppResult, b: AppResult) => b.recent_reviews_30_days - a.recent_reviews_30_days)
-        setApps(sorted)
+        setApps(data.apps)
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred")
       } finally {
@@ -62,16 +63,51 @@ export default function TrendingPage() {
     )
   }
 
-  const trendingApps = apps.slice(0, 20)
+  // Sort based on selected mode
+  const sortedApps = [...apps].sort((a, b) => {
+    if (sortMode === "trending_score") {
+      return b.trending_score - a.trending_score
+    }
+    return b.recent_reviews_30_days - a.recent_reviews_30_days
+  })
+
+  const trendingApps = sortedApps.slice(0, 20)
+
+  // Calculate stats
+  const highestTrendingScore = apps.length > 0 ? Math.max(...apps.map(a => a.trending_score)) : 0
+  const hottestApp = sortedApps[0]
 
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Trending Apps</h1>
-        <p className="text-muted-foreground">Apps with the most reviews in the last 30 days</p>
+        <p className="text-muted-foreground">
+          {sortMode === "trending_score" 
+            ? "Apps with highest % of recent reviews vs total (new/trending apps)"
+            : "Apps with the most reviews in the last 30 days"}
+        </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="flex gap-2">
+        <Button 
+          variant={sortMode === "trending_score" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSortMode("trending_score")}
+        >
+          <Flame className="mr-2 size-4" />
+          By Trending Score
+        </Button>
+        <Button 
+          variant={sortMode === "recent_reviews" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSortMode("recent_reviews")}
+        >
+          <MessageSquare className="mr-2 size-4" />
+          By Recent Reviews
+        </Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Hottest App</CardTitle>
@@ -80,14 +116,31 @@ export default function TrendingPage() {
           <CardContent>
             {loading ? (
               <Skeleton className="h-7 w-32" />
-            ) : trendingApps.length > 0 ? (
-              <div className="text-lg font-bold truncate">{trendingApps[0].title}</div>
+            ) : hottestApp ? (
+              <div className="text-lg font-bold truncate">{hottestApp.title}</div>
             ) : (
               <div className="text-lg font-bold">-</div>
             )}
             <p className="text-xs text-muted-foreground">
-              {trendingApps.length > 0 ? `${trendingApps[0].recent_reviews_30_days} recent reviews` : "No data"}
+              {hottestApp ? `${hottestApp.trending_score.toFixed(1)}% trending score` : "No data"}
             </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Max Trending Score</CardTitle>
+            <TrendingUp className="size-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-7 w-20" />
+            ) : (
+              <div className="text-2xl font-bold text-orange-500">
+                {highestTrendingScore.toFixed(1)}%
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">Highest ratio found</p>
           </CardContent>
         </Card>
 
@@ -110,18 +163,18 @@ export default function TrendingPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Recent Reviews</CardTitle>
-            <TrendingUp className="size-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Avg Trending Score</CardTitle>
+            <Flame className="size-4 text-orange-500" />
           </CardHeader>
           <CardContent>
             {loading ? (
               <Skeleton className="h-7 w-20" />
             ) : apps.length > 0 ? (
               <div className="text-2xl font-bold">
-                {Math.round(apps.reduce((acc, app) => acc + app.recent_reviews_30_days, 0) / apps.length)}
+                {(apps.reduce((acc, app) => acc + app.trending_score, 0) / apps.length).toFixed(1)}%
               </div>
             ) : (
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">0%</div>
             )}
             <p className="text-xs text-muted-foreground">Per app average</p>
           </CardContent>
@@ -130,8 +183,12 @@ export default function TrendingPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Top 20 Trending Apps</CardTitle>
-          <CardDescription>Ranked by number of reviews in the last 30 days</CardDescription>
+          <CardTitle>Top 20 {sortMode === "trending_score" ? "Trending" : "Active"} Apps</CardTitle>
+          <CardDescription>
+            {sortMode === "trending_score" 
+              ? "Ranked by trending score - apps where most reviews came recently"
+              : "Ranked by number of reviews in the last 30 days"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -149,7 +206,8 @@ export default function TrendingPage() {
                     <TableHead>App</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Rating</TableHead>
-                    <TableHead>Recent Reviews (30d)</TableHead>
+                    <TableHead>Trending Score</TableHead>
+                    <TableHead>Recent (30d)</TableHead>
                     <TableHead>Total Reviews</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
@@ -178,8 +236,16 @@ export default function TrendingPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
+                          <Flame className={`size-4 ${app.trending_score > 50 ? 'text-orange-500 fill-current' : 'text-muted-foreground'}`} />
+                          <span className={`font-semibold ${app.trending_score > 50 ? 'text-orange-500' : ''}`}>
+                            {app.trending_score.toFixed(1)}%
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
                           <MessageSquare className="size-4 text-muted-foreground" />
-                          <span className="font-semibold">{app.recent_reviews_30_days}</span>
+                          <span>{app.recent_reviews_30_days}</span>
                         </div>
                       </TableCell>
                       <TableCell>{app.review_count || "-"}</TableCell>

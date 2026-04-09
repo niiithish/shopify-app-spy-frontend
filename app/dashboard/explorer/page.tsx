@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Star, MessageSquare, TrendingUp, ExternalLink, RotateCcw, Filter } from "lucide-react"
+import { Star, MessageSquare, TrendingUp, ExternalLink, RotateCcw, Filter, Flame } from "lucide-react"
 
 interface AppResult {
   id: number
@@ -35,8 +35,8 @@ interface AppResult {
   review_count: string
   price: string
   relevance_score: number
-  launched: string
   recent_reviews_30_days: number
+  trending_score: number
 }
 
 interface Filters {
@@ -45,6 +45,8 @@ interface Filters {
   maxRating: number
   minRecentReviews: number
   maxRecentReviews: number
+  minTrendingScore: number
+  maxTrendingScore: number
   priceType: "all" | "free" | "paid"
 }
 
@@ -61,6 +63,8 @@ export default function ExplorerPage() {
     maxRating: 5,
     minRecentReviews: 0,
     maxRecentReviews: 10000,
+    minTrendingScore: 0,
+    maxTrendingScore: 100,
     priceType: "all",
   })
 
@@ -84,6 +88,8 @@ export default function ExplorerPage() {
       if (filters.maxRating < 5) params.set("maxRating", filters.maxRating.toString())
       if (filters.minRecentReviews > 0) params.set("minRecentReviews", filters.minRecentReviews.toString())
       if (filters.maxRecentReviews < 10000) params.set("maxRecentReviews", filters.maxRecentReviews.toString())
+      if (filters.minTrendingScore > 0) params.set("minTrendingScore", filters.minTrendingScore.toString())
+      if (filters.maxTrendingScore < 100) params.set("maxTrendingScore", filters.maxTrendingScore.toString())
       if (filters.priceType !== "all") params.set("priceType", filters.priceType)
 
       const res = await fetch(`/api/apps?${params.toString()}`)
@@ -110,10 +116,10 @@ export default function ExplorerPage() {
   }
 
   const resetFilters = () => {
-    setFilters({ keywords: [], minRating: 0, maxRating: 5, minRecentReviews: 0, maxRecentReviews: 10000, priceType: "all" })
+    setFilters({ keywords: [], minRating: 0, maxRating: 5, minRecentReviews: 0, maxRecentReviews: 10000, minTrendingScore: 0, maxTrendingScore: 100, priceType: "all" })
   }
 
-  const hasActiveFilters = filters.keywords.length > 0 || filters.minRating > 0 || filters.maxRating < 5 || filters.minRecentReviews > 0 || filters.maxRecentReviews < 10000 || filters.priceType !== "all"
+  const hasActiveFilters = filters.keywords.length > 0 || filters.minRating > 0 || filters.maxRating < 5 || filters.minRecentReviews > 0 || filters.maxRecentReviews < 10000 || filters.minTrendingScore > 0 || filters.maxTrendingScore < 100 || filters.priceType !== "all"
 
   if (error) {
     return (
@@ -191,6 +197,25 @@ export default function ExplorerPage() {
 
             <Separator />
 
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="flex flex-col gap-3">
+                <Label className="flex items-center gap-2">
+                  <Flame className="size-4 text-orange-500" />
+                  Min Trending Score: {filters.minTrendingScore.toFixed(0)}%
+                </Label>
+                <Slider value={[filters.minTrendingScore]} onValueChange={([v]) => setFilters((p) => ({ ...p, minTrendingScore: v }))} min={0} max={100} step={1} />
+              </div>
+              <div className="flex flex-col gap-3">
+                <Label className="flex items-center gap-2">
+                  <Flame className="size-4 text-orange-500" />
+                  Max Trending Score: {filters.maxTrendingScore.toFixed(0)}%
+                </Label>
+                <Slider value={[filters.maxTrendingScore]} onValueChange={([v]) => setFilters((p) => ({ ...p, maxTrendingScore: v }))} min={0} max={100} step={1} />
+              </div>
+            </div>
+
+            <Separator />
+
             <div className="flex flex-col gap-3">
               <Label>Price</Label>
               <Select value={filters.priceType} onValueChange={(v) => setFilters((p) => ({ ...p, priceType: v as "all" | "free" | "paid" }))}>
@@ -234,6 +259,7 @@ export default function ExplorerPage() {
                     <TableHead>Rating</TableHead>
                     <TableHead>Reviews</TableHead>
                     <TableHead>Recent (30d)</TableHead>
+                    <TableHead>Trending</TableHead>
                     <TableHead>Price</TableHead>
                     <TableHead>Relevance</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
@@ -260,6 +286,16 @@ export default function ExplorerPage() {
                           <div className="flex items-center gap-1">
                             <MessageSquare className="size-4" />
                             <span>{app.recent_reviews_30_days}</span>
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {app.trending_score > 0 ? (
+                          <div className="flex items-center gap-1">
+                            <Flame className={`size-4 ${app.trending_score > 50 ? 'text-orange-500 fill-current' : 'text-muted-foreground'}`} />
+                            <span className={app.trending_score > 50 ? 'text-orange-500 font-semibold' : ''}>{app.trending_score.toFixed(1)}%</span>
                           </div>
                         ) : (
                           "-"

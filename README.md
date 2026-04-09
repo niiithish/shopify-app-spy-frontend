@@ -5,8 +5,8 @@ A Next.js dashboard for analyzing Shopify App Store data. Connects to a Turso da
 ## Features
 
 - **Dashboard** - Overview with key metrics and top performing apps
-- **App Explorer** - Advanced filtering by category, rating, recent reviews, and price
-- **Trending** - Apps ranked by recent activity (reviews in last 30 days)
+- **App Explorer** - Advanced filtering by category, rating, recent reviews, trending score, and price
+- **Trending** - Apps ranked by trending score (% of recent vs total reviews) or recent activity
 - **Dark Mode** - Press `d` to toggle
 
 ## Tech Stack
@@ -66,7 +66,10 @@ lib/
 - **Categories** - Multi-select by keyword
 - **Rating** - Min/max star rating
 - **Recent Reviews (30d)** - Min/max reviews in last 30 days
+- **Trending Score** - Min/max trending score (% of recent vs total reviews)
 - **Price** - Free, Paid, or All
+
+**Trending Score** helps identify new/trending apps. A high score (e.g., 80%) means most of the app's reviews came recently, indicating it's gaining traction.
 
 ## Data Source
 
