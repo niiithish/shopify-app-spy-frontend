@@ -4,10 +4,10 @@ export function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        // Data is fresh for 5 minutes
-        staleTime: 5 * 60 * 1000,
-        // Keep unused data for 10 minutes
-        gcTime: 10 * 60 * 1000,
+        // Data stays fresh for 30 minutes (good for persisted cache)
+        staleTime: 30 * 60 * 1000,
+        // Keep unused data for 1 hour in cache
+        gcTime: 60 * 60 * 1000,
         // Retry failed requests up to 2 times
         retry: 2,
         // Don't refetch on window focus by default
