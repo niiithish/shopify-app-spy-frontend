@@ -12,11 +12,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hugeicons/core-free-icons": "^4.1.1",
+    "@hugeicons/react": "^1.1.6",
     "@tanstack/react-query": "^5.97.0",
     "@tanstack/react-query-persist-client": "^5.97.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.7.0",
     "next": "16.1.7",
     "next-themes": "^0.4.6",
     "radix-ui": "^1.4.3",

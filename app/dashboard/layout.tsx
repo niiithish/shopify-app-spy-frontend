@@ -13,11 +13,12 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import {
-  LayoutDashboard,
-  Search,
+  DashboardSquare01Icon,
+  Search01Icon,
   TrendingUp,
-  Settings,
-} from "lucide-react"
+  Settings01Icon,
+} from "@hugeicons/core-free-icons"
+import { Icon } from "@/lib/icons"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -25,12 +26,12 @@ const navItems = [
   {
     title: "Dashboard",
     href: "/dashboard",
-    icon: LayoutDashboard,
+    icon: DashboardSquare01Icon,
   },
   {
     title: "App Explorer",
     href: "/dashboard/explorer",
-    icon: Search,
+    icon: Search01Icon,
   },
   {
     title: "Trending",
@@ -47,7 +48,7 @@ function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <TrendingUp className="size-4" />
+            <Icon icon={TrendingUp} className="size-4" />
           </div>
           <span className="font-semibold">Shopify Spy</span>
         </div>
@@ -62,7 +63,7 @@ function AppSidebar() {
                 tooltip={item.title}
               >
                 <Link href={item.href}>
-                  <item.icon />
+                  <Icon icon={item.icon} />
                   <span>{item.title}</span>
                 </Link>
               </SidebarMenuButton>
@@ -75,7 +76,7 @@ function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip="Settings">
               <Link href="/dashboard/settings">
-                <Settings />
+                <Icon icon={Settings01Icon} />
                 <span>Settings</span>
               </Link>
             </SidebarMenuButton>

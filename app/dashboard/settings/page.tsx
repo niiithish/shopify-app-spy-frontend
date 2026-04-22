@@ -3,7 +3,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Database, Globe, Code } from "lucide-react"
+import { Database01Icon, Globe, CodeIcon } from "@hugeicons/core-free-icons"
+import { Icon } from "@/lib/icons"
 
 export default function SettingsPage() {
   return (
@@ -17,7 +18,7 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Database className="size-5 text-muted-foreground" />
+              <Icon icon={Database01Icon} className="size-5 text-muted-foreground" />
               <CardTitle>Database</CardTitle>
             </div>
             <CardDescription>Connected data source</CardDescription>
@@ -38,7 +39,7 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Globe className="size-5 text-muted-foreground" />
+              <Icon icon={Globe} className="size-5 text-muted-foreground" />
               <CardTitle>Data Source</CardTitle>
             </div>
             <CardDescription>Where app data comes from</CardDescription>
@@ -59,7 +60,7 @@ export default function SettingsPage() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Code className="size-5 text-muted-foreground" />
+              <Icon icon={CodeIcon} className="size-5 text-muted-foreground" />
               <CardTitle>About</CardTitle>
             </div>
             <CardDescription>Shopify App Spy - Intelligence for Shopify App Developers</CardDescription>

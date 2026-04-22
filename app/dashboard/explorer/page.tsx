@@ -24,18 +24,20 @@ import {
 } from "@/components/ui/select"
 import {
   Star,
-  MessageSquare,
+  Message01Icon,
   ExternalLink,
-  RotateCcw,
+  RotateLeft01Icon,
+  Filter,
   Flame,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Search,
-  X,
+  Search01Icon,
+  Close,
   SlidersHorizontal,
-  Loader2,
-} from "lucide-react"
+  LoaderCircle,
+} from "@hugeicons/core-free-icons"
+import { Icon } from "@/lib/icons"
 import { useApps, useKeywords } from "@/hooks/use-queries"
 
 interface Filters {
@@ -63,11 +65,11 @@ type PageSize = "all" | "10" | "50" | "100" | "250" | "500"
 
 // SortIcon component - defined outside to avoid creating during render
 function SortIcon({ column, sortKey, sortDir }: { column: SortKey; sortKey: SortKey | null; sortDir: SortDir }) {
-  if (sortKey !== column) return <ArrowUpDown className="size-3 opacity-40" />
+  if (sortKey !== column) return <Icon icon={ArrowUpDown} className="size-3 opacity-40" />
   return sortDir === "asc" ? (
-    <ArrowUp className="size-3 text-primary" />
+    <Icon icon={ArrowUp} className="size-3 text-primary" />
   ) : (
-    <ArrowDown className="size-3 text-primary" />
+    <Icon icon={ArrowDown} className="size-3 text-primary" />
   )
 }
 
@@ -284,7 +286,7 @@ export default function ExplorerPage() {
 
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" onClick={resetFilters} className="text-muted-foreground">
-              <RotateCcw className="mr-1 size-3.5" />
+              <Icon icon={RotateLeft01Icon} className="mr-1 size-3.5" />
               Clear all
             </Button>
           )}
@@ -294,7 +296,7 @@ export default function ExplorerPage() {
             onClick={() => setFiltersOpen(!filtersOpen)}
             className="relative"
           >
-            <SlidersHorizontal className="mr-1.5 size-3.5" />
+            <Icon icon={SlidersHorizontal} className="mr-1.5 size-3.5" />
             Filters
             {activeFilterCount > 0 && (
               <span className="ml-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
@@ -307,7 +309,7 @@ export default function ExplorerPage() {
 
       {/* ── Search bar ───────────────────────────────────────────── */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Icon icon={Search01Icon} className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Search apps by name or keyword..."
           value={filters.search}
@@ -319,7 +321,7 @@ export default function ExplorerPage() {
             onClick={() => setFilters((p) => ({ ...p, search: "" }))}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
           >
-            <X className="size-3.5" />
+            <Icon icon={Close} className="size-3.5" />
           </button>
         )}
       </div>
@@ -351,7 +353,7 @@ export default function ExplorerPage() {
                       >
                         {keyword}
                         {filters.keywords.includes(keyword) && (
-                          <X className="ml-1 size-3" />
+                          <Icon icon={Close} className="ml-1 size-3" />
                         )}
                       </Badge>
                     ))}
@@ -429,7 +431,7 @@ export default function ExplorerPage() {
       {/* ── Active keyword pills (always visible when filters collapsed) */}
       {!filtersOpen && filters.keywords.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
-          <Flame className="size-3.5 text-muted-foreground" />
+          <Icon icon={Filter} className="size-3.5 text-muted-foreground" />
           {filters.keywords.map((kw) => (
             <Badge
               key={kw}
@@ -438,7 +440,7 @@ export default function ExplorerPage() {
               onClick={() => toggleKeyword(kw)}
             >
               {kw}
-              <X className="ml-1 size-3" />
+              <Icon icon={Close} className="ml-1 size-3" />
             </Badge>
           ))}
         </div>
@@ -458,7 +460,7 @@ export default function ExplorerPage() {
                     <span className="text-muted-foreground"> (of {sortedApps.length})</span>
                   )}
                   {isFetching && !appsLoading && (
-                    <Loader2 className="ml-2 inline size-4 animate-spin" />
+                    <Icon icon={LoaderCircle} className="ml-2 inline size-4 animate-spin" />
                   )}
                 </>
               )}
@@ -469,7 +471,7 @@ export default function ExplorerPage() {
                   onClick={() => { setSortKey(null); setSortDir("desc") }}
                   className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <X className="size-3" />
+                  <Icon icon={Close} className="size-3" />
                   Clear sort
                 </button>
               )}
@@ -480,7 +482,7 @@ export default function ExplorerPage() {
                 disabled={isFetching}
                 className="h-7"
               >
-                {isFetching ? <Loader2 className="size-3 animate-spin" /> : "Refresh"}
+                {isFetching ? <Icon icon={LoaderCircle} className="size-3 animate-spin" /> : "Refresh"}
               </Button>
             </div>
           </div>
@@ -494,7 +496,7 @@ export default function ExplorerPage() {
             </div>
           ) : displayedApps.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
-              <Search className="size-10 opacity-40" />
+              <Icon icon={Search01Icon} className="size-10 opacity-40" />
               <p className="text-sm">No apps match your filters</p>
               <Button variant="outline" size="sm" onClick={resetFilters}>
                 Reset Filters
@@ -594,7 +596,7 @@ export default function ExplorerPage() {
                       <TableCell>
                         {app.rating ? (
                           <div className="flex items-center gap-1">
-                            <Star className="size-3.5 fill-current text-yellow-500" />
+                            <Icon icon={Star} className="size-3.5 fill-current text-yellow-500" />
                             <span className="text-sm tabular-nums">{app.rating}</span>
                           </div>
                         ) : (
@@ -607,7 +609,7 @@ export default function ExplorerPage() {
                       <TableCell>
                         {app.recent_reviews_30_days > 0 ? (
                           <div className="flex items-center gap-1">
-                            <MessageSquare className="size-3.5 text-muted-foreground" />
+                            <Icon icon={Message01Icon} className="size-3.5 text-muted-foreground" />
                             <span className="tabular-nums">{app.recent_reviews_30_days}</span>
                           </div>
                         ) : (
@@ -617,7 +619,7 @@ export default function ExplorerPage() {
                       <TableCell>
                         {app.trending_score > 0 ? (
                           <div className="flex items-center gap-1">
-                            <Flame
+                            <Icon icon={Flame}
                               className={`size-3.5 ${
                                 app.trending_score > 50
                                   ? "fill-current text-orange-500"
@@ -652,7 +654,7 @@ export default function ExplorerPage() {
                           asChild
                         >
                           <a href={app.url} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="size-3.5" />
+                            <Icon icon={ExternalLink} className="size-3.5" />
                           </a>
                         </Button>
                       </TableCell>

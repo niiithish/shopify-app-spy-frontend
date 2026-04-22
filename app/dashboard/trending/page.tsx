@@ -14,7 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { TrendingUp, Star, MessageSquare, ExternalLink, Flame, RefreshCw } from "lucide-react"
+import { TrendingUp, Star, Message01Icon, ExternalLink, Flame, LoaderCircle } from "@hugeicons/core-free-icons"
+import { Icon } from "@/lib/icons"
 import { useApps, type AppResult } from "@/hooks/use-queries"
 
 type SortMode = "recent_reviews" | "trending_score"
@@ -66,7 +67,7 @@ export default function TrendingPage() {
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-          {isFetching ? <RefreshCw className="mr-2 size-4 animate-spin" /> : null}
+          {isFetching ? <Icon icon={LoaderCircle} className="mr-2 size-4 animate-spin" /> : null}
           Refresh
         </Button>
       </div>
@@ -77,7 +78,7 @@ export default function TrendingPage() {
           size="sm"
           onClick={() => setSortMode("trending_score")}
         >
-          <Flame className="mr-2 size-4" />
+          <Icon icon={Flame} className="mr-2 size-4" />
           By Trending Score
         </Button>
         <Button
@@ -85,7 +86,7 @@ export default function TrendingPage() {
           size="sm"
           onClick={() => setSortMode("recent_reviews")}
         >
-          <MessageSquare className="mr-2 size-4" />
+          <Icon icon={Message01Icon} className="mr-2 size-4" />
           By Recent Reviews
         </Button>
       </div>
@@ -94,7 +95,7 @@ export default function TrendingPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Hottest App</CardTitle>
-            <Flame className="size-4 text-orange-500" />
+            <Icon icon={Flame} className="size-4 text-orange-500" />
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -113,7 +114,7 @@ export default function TrendingPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Max Trending Score</CardTitle>
-            <TrendingUp className="size-4 text-muted-foreground" />
+            <Icon icon={TrendingUp} className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -128,7 +129,7 @@ export default function TrendingPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Recent Reviews</CardTitle>
-            <MessageSquare className="size-4 text-muted-foreground" />
+            <Icon icon={Message01Icon} className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -143,7 +144,7 @@ export default function TrendingPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Trending Score</CardTitle>
-            <Flame className="size-4 text-orange-500" />
+            <Icon icon={Flame} className="size-4 text-orange-500" />
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -218,7 +219,7 @@ export default function TrendingPage() {
                       <TableCell>
                         {app.rating ? (
                           <div className="flex items-center gap-1">
-                            <Star className="size-4 fill-current text-yellow-500" />
+                            <Icon icon={Star} className="size-4 fill-current text-yellow-500" />
                             <span>{app.rating}</span>
                           </div>
                         ) : (
@@ -227,7 +228,7 @@ export default function TrendingPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Flame
+                          <Icon icon={Flame}
                             className={`size-4 ${app.trending_score > 50 ? "text-orange-500 fill-current" : "text-muted-foreground"}`}
                           />
                           <span
@@ -239,7 +240,7 @@ export default function TrendingPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <MessageSquare className="size-4 text-muted-foreground" />
+                          <Icon icon={Message01Icon} className="size-4 text-muted-foreground" />
                           <span>{app.recent_reviews_30_days}</span>
                         </div>
                       </TableCell>
@@ -247,7 +248,7 @@ export default function TrendingPage() {
                       <TableCell>
                         <Button variant="ghost" size="icon" asChild>
                           <a href={app.url} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="size-4" />
+                            <Icon icon={ExternalLink} className="size-4" />
                           </a>
                         </Button>
                       </TableCell>

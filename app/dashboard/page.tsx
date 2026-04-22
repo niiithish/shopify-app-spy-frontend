@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Package, Tag, Calendar, Star, MessageSquare } from "lucide-react"
+import { Package01Icon, Tag01Icon, Calendar03Icon, Star, Message01Icon } from "@hugeicons/core-free-icons"
+import { Icon } from "@/lib/icons"
 import { useStats, useKeywords, useApps } from "@/hooks/use-queries"
 
 export default function DashboardPage() {
@@ -47,7 +48,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Apps</CardTitle>
-            <Package className="size-4 text-muted-foreground" />
+            <Icon icon={Package01Icon} className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -62,7 +63,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Keywords</CardTitle>
-            <Tag className="size-4 text-muted-foreground" />
+            <Icon icon={Tag01Icon} className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -77,7 +78,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Latest Update</CardTitle>
-            <Calendar className="size-4 text-muted-foreground" />
+            <Icon icon={Calendar03Icon} className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -94,7 +95,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Rating</CardTitle>
-            <Star className="size-4 text-muted-foreground" />
+            <Icon icon={Star} className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -139,21 +140,9 @@ export default function DashboardPage() {
                         {app.title}
                       </a>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Badge variant="secondary" className="text-xs">
-                          {app.keyword}
-                        </Badge>
-                        {app.rating && (
-                          <span className="flex items-center gap-1">
-                            <Star className="size-3 fill-current" />
-                            {app.rating}
-                          </span>
-                        )}
-                        {app.review_count && (
-                          <span className="flex items-center gap-1">
-                            <MessageSquare className="size-3" />
-                            {app.review_count}
-                          </span>
-                        )}
+                        <Badge variant="secondary" className="text-xs">{app.keyword}</Badge>
+                        {app.rating && <span className="flex items-center gap-1"><Icon icon={Star} className="size-3 fill-current" />{app.rating}</span>}
+                        {app.review_count && <span className="flex items-center gap-1"><Icon icon={Message01Icon} className="size-3" />{app.review_count}</span>}
                       </div>
                     </div>
                     <Badge variant="outline" className="shrink-0">
