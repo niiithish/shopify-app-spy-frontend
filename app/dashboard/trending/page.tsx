@@ -17,6 +17,12 @@ import {
 import { TrendingUp, Star, Message01Icon, ExternalLink, Flame, LoaderCircle } from "@hugeicons/core-free-icons"
 import { Icon } from "@/lib/icons"
 import { useApps, type AppResult } from "@/hooks/use-queries"
+import {
+  AnimatedStat,
+  LiveBadge,
+  MomentumBar,
+  RankBadge,
+} from "@/components/analytics/visual-primitives"
 
 type SortMode = "recent_reviews" | "trending_score"
 
@@ -57,9 +63,12 @@ export default function TrendingPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="animate-fade-in-up flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Trending Apps</h1>
+          <div className="mb-2">
+            <LiveBadge label="Momentum feed" />
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">Trending Apps</h1>
           <p className="text-muted-foreground">
             {sortMode === "trending_score"
               ? "Apps with highest % of recent reviews vs total (new/trending apps)"
@@ -92,10 +101,10 @@ export default function TrendingPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className="glass-card border-primary/20 bg-gradient-to-br from-primary/10 to-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Hottest App</CardTitle>
-            <Icon icon={Flame} className="size-4 text-orange-500" />
+            <Icon icon={Flame} className="animate-flame text-primary" />
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -120,7 +129,14 @@ export default function TrendingPage() {
             {isLoading ? (
               <Skeleton className="h-7 w-20" />
             ) : (
-              <div className="text-2xl font-bold text-orange-500">{highestTrendingScore.toFixed(1)}%</div>
+              <div className="flex items-baseline gap-0.5">
+                <AnimatedStat
+                  value={highestTrendingScore}
+                  decimals={1}
+                  className="text-2xl text-primary"
+                />
+                <span className="text-lg font-bold text-primary">%</span>
+              </div>
             )}
             <p className="text-xs text-muted-foreground">Highest ratio found</p>
           </CardContent>
@@ -135,7 +151,7 @@ export default function TrendingPage() {
             {isLoading ? (
               <Skeleton className="h-7 w-20" />
             ) : (
-              <div className="text-2xl font-bold">{totalRecentReviews.toLocaleString()}</div>
+              <AnimatedStat value={totalRecentReviews} className="text-2xl" />
             )}
             <p className="text-xs text-muted-foreground">Across all tracked apps</p>
           </CardContent>
@@ -197,18 +213,7 @@ export default function TrendingPage() {
                   {trendingApps.map((app: AppResult, index: number) => (
                     <TableRow key={app.id}>
                       <TableCell>
-                        {index < 3 ? (
-                          <Badge
-                            variant={index === 0 ? "default" : "secondary"}
-                            className="justify-center w-8"
-                          >
-                            {index + 1}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground w-8 text-center inline-block">
-                            {index + 1}
-                          </span>
-                        )}
+                        <RankBadge rank={index + 1} />
                       </TableCell>
                       <TableCell className="font-medium">{app.title}</TableCell>
                       <TableCell>
@@ -227,16 +232,7 @@ export default function TrendingPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Icon icon={Flame}
-                            className={`size-4 ${app.trending_score > 50 ? "text-orange-500 fill-current" : "text-muted-foreground"}`}
-                          />
-                          <span
-                            className={`font-semibold ${app.trending_score > 50 ? "text-orange-500" : ""}`}
-                          >
-                            {app.trending_score.toFixed(1)}%
-                          </span>
-                        </div>
+                        <MomentumBar value={app.trending_score} />
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">

@@ -1,12 +1,21 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  Popover,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import {
   Table,
   TableBody,
@@ -22,12 +31,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
 import {
   Star,
   Message01Icon,
   ExternalLink,
-  RotateLeft01Icon,
-  Filter,
   Flame,
   ArrowUpDown,
   ArrowUp,
@@ -36,9 +44,23 @@ import {
   Close,
   SlidersHorizontal,
   LoaderCircle,
+  Download01Icon,
+  RotateLeft01Icon,
 } from "@hugeicons/core-free-icons"
 import { Icon } from "@/lib/icons"
 import { useApps, useKeywords } from "@/hooks/use-queries"
+import {
+  computeCategoryInsights,
+  exportAppsToCsv,
+  scoreApps,
+  type ScoredApp,
+} from "@/lib/analytics"
+import { AppDetailSheet } from "@/components/analytics/app-detail-sheet"
+import {
+  LiveBadge,
+  MomentumBar,
+  OpportunityScore,
+} from "@/components/analytics/visual-primitives"
 
 interface Filters {
   keywords: string[]
@@ -56,15 +78,21 @@ type SortKey =
   | "review_count"
   | "recent_reviews_30_days"
   | "trending_score"
+  | "opportunity_score"
   | "price"
   | "relevance_score"
 
 type SortDir = "asc" | "desc"
 
-type PageSize = "all" | "10" | "50" | "100" | "250" | "500"
-
-// SortIcon component - defined outside to avoid creating during render
-function SortIcon({ column, sortKey, sortDir }: { column: SortKey; sortKey: SortKey | null; sortDir: SortDir }) {
+function SortIcon({
+  column,
+  sortKey,
+  sortDir,
+}: {
+  column: SortKey
+  sortKey: SortKey | null
+  sortDir: SortDir
+}) {
   if (sortKey !== column) return <Icon icon={ArrowUpDown} className="size-3 opacity-40" />
   return sortDir === "asc" ? (
     <Icon icon={ArrowUp} className="size-3 text-primary" />
@@ -72,15 +100,6 @@ function SortIcon({ column, sortKey, sortDir }: { column: SortKey; sortKey: Sort
     <Icon icon={ArrowDown} className="size-3 text-primary" />
   )
 }
-
-const PAGE_SIZE_OPTIONS: { value: PageSize; label: string }[] = [
-  { value: "all", label: "Show All" },
-  { value: "10", label: "Top 10" },
-  { value: "50", label: "Top 50" },
-  { value: "100", label: "Top 100" },
-  { value: "250", label: "Top 250" },
-  { value: "500", label: "Top 500" },
-]
 
 const DEFAULT_FILTERS: Filters = {
   keywords: [],
@@ -91,18 +110,27 @@ const DEFAULT_FILTERS: Filters = {
   priceType: "all",
 }
 
-export default function ExplorerPage() {
-  const [filtersOpen, setFiltersOpen] = useState(false)
-  const [filters, setFilters] = useState<Filters>({ ...DEFAULT_FILTERS })
-  const [sortKey, setSortKey] = useState<SortKey | null>(null)
-  const [sortDir, setSortDir] = useState<SortDir>("desc")
-  const [pageSize, setPageSize] = useState<PageSize>("all")
+function countActiveFilters(filters: Filters) {
+  return [
+    filters.keywords.length > 0,
+    filters.minRating !== "",
+    filters.minReviews !== "",
+    filters.minTrending !== "",
+    filters.priceType !== "all",
+  ].filter(Boolean).length
+}
 
-  // ── Data fetching with TanStack Query ───────────────────────────────
+export default function ExplorerPage() {
+  const [filters, setFilters] = useState<Filters>({ ...DEFAULT_FILTERS })
+  const [draftFilters, setDraftFilters] = useState<Filters>({ ...DEFAULT_FILTERS })
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [sortKey, setSortKey] = useState<SortKey | null>("opportunity_score")
+  const [sortDir, setSortDir] = useState<SortDir>("desc")
+  const [selectedApp, setSelectedApp] = useState<ScoredApp | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
 
   const { data: availableKeywords = [], isLoading: keywordsLoading } = useKeywords()
 
-  // Build query filters for server-side filtering
   const queryFilters = useMemo(() => {
     const result: {
       keywords?: string[]
@@ -132,8 +160,6 @@ export default function ExplorerPage() {
     refetch,
   } = useApps(hasServerFilters ? queryFilters : undefined)
 
-  // ── Sorting ────────────────────────────────────────────────────────
-
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"))
@@ -143,11 +169,16 @@ export default function ExplorerPage() {
     }
   }
 
-  // Apply client-side search filter, sorting, and pagination
-  const sortedApps = useMemo(() => {
-    let result = [...apps]
+  const scoredApps = useMemo(() => scoreApps(apps), [apps])
+  const categories = useMemo(() => computeCategoryInsights(apps), [apps])
+  const categoryByKeyword = useMemo(
+    () => new Map(categories.map((category) => [category.keyword, category])),
+    [categories]
+  )
 
-    // Client-side search filter
+  const sortedApps = useMemo(() => {
+    let result = [...scoredApps]
+
     if (filters.search.trim()) {
       const q = filters.search.toLowerCase()
       result = result.filter(
@@ -188,6 +219,10 @@ export default function ExplorerPage() {
           aVal = a.trending_score
           bVal = b.trending_score
           break
+        case "opportunity_score":
+          aVal = a.opportunityScore
+          bVal = b.opportunityScore
+          break
         case "price":
           aVal = a.price ? parseFloat(a.price.replace(/[^0-9.]/g, "")) || 0 : 0
           bVal = b.price ? parseFloat(b.price.replace(/[^0-9.]/g, "")) || 0 : 0
@@ -203,19 +238,29 @@ export default function ExplorerPage() {
     })
 
     return result
-  }, [apps, sortKey, sortDir, filters.search])
+  }, [scoredApps, sortKey, sortDir, filters.search])
 
-  // Apply pagination
-  const displayedApps = useMemo(() => {
-    if (pageSize === "all") return sortedApps
-    const limit = parseInt(pageSize, 10)
-    return sortedApps.slice(0, limit)
-  }, [sortedApps, pageSize])
+  const activeFilterCount = countActiveFilters(filters)
 
-  // ── Filter helpers ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (filterOpen) {
+      setDraftFilters({ ...filters })
+    }
+  }, [filterOpen, filters])
 
-  const toggleKeyword = (keyword: string) => {
-    setFilters((prev) => ({
+  const applyFilters = () => {
+    setFilters({ ...draftFilters })
+    setFilterOpen(false)
+  }
+
+  const clearFilters = () => {
+    setDraftFilters({ ...DEFAULT_FILTERS, search: filters.search })
+    setFilters({ ...DEFAULT_FILTERS, search: filters.search })
+    setFilterOpen(false)
+  }
+
+  const toggleDraftKeyword = (keyword: string) => {
+    setDraftFilters((prev) => ({
       ...prev,
       keywords: prev.keywords.includes(keyword)
         ? prev.keywords.filter((k) => k !== keyword)
@@ -223,31 +268,10 @@ export default function ExplorerPage() {
     }))
   }
 
-  const resetFilters = () => {
-    setFilters({ ...DEFAULT_FILTERS })
-    setSortKey(null)
-    setSortDir("desc")
-    setPageSize("all")
+  const openApp = (app: ScoredApp) => {
+    setSelectedApp(app)
+    setSheetOpen(true)
   }
-
-  const hasActiveFilters =
-    filters.keywords.length > 0 ||
-    filters.search !== "" ||
-    filters.minRating !== "" ||
-    filters.minReviews !== "" ||
-    filters.minTrending !== "" ||
-    filters.priceType !== "all" ||
-    pageSize !== "all"
-
-  const activeFilterCount = [
-    filters.keywords.length > 0,
-    filters.minRating !== "",
-    filters.minReviews !== "",
-    filters.minTrending !== "",
-    filters.priceType !== "all",
-  ].filter(Boolean).length
-
-  // ── Render ─────────────────────────────────────────────────────────
 
   if (isError) {
     return (
@@ -260,160 +284,146 @@ export default function ExplorerPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* ── Header row ───────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">App Explorer</h1>
-          <p className="text-sm text-muted-foreground">
-            Search, filter &amp; sort through Shopify apps
-          </p>
+      <div className="animate-fade-in-up">
+        <div className="mb-2">
+          <LiveBadge label="Research mode" />
         </div>
+        <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">App Explorer</h1>
+        <p className="text-sm text-muted-foreground">Search apps and refine with filters when you need them</p>
+      </div>
 
-        <div className="flex items-center gap-2">
-          {/* Results Limit Selector */}
-          <Select value={pageSize} onValueChange={(v) => setPageSize(v as PageSize)}>
-            <SelectTrigger className="h-8 w-[130px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PAGE_SIZE_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={resetFilters} className="text-muted-foreground">
-              <Icon icon={RotateLeft01Icon} className="mr-1 size-3.5" />
-              Clear all
-            </Button>
+      <div className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Icon
+            icon={Search01Icon}
+            className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            placeholder="Search by app name or keyword..."
+            value={filters.search}
+            onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
+            className="h-10 pl-9 pr-9"
+          />
+          {filters.search && (
+            <button
+              type="button"
+              onClick={() => setFilters((p) => ({ ...p, search: "" }))}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Icon icon={Close} className="size-3.5" />
+            </button>
           )}
-          <Button
-            variant={filtersOpen ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setFiltersOpen(!filtersOpen)}
-            className="relative"
-          >
-            <Icon icon={SlidersHorizontal} className="mr-1.5 size-3.5" />
-            Filters
-            {activeFilterCount > 0 && (
-              <span className="ml-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                {activeFilterCount}
-              </span>
-            )}
-          </Button>
         </div>
-      </div>
 
-      {/* ── Search bar ───────────────────────────────────────────── */}
-      <div className="relative">
-        <Icon icon={Search01Icon} className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search apps by name or keyword..."
-          value={filters.search}
-          onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
-          className="h-9 pl-9 pr-9"
-        />
-        {filters.search && (
-          <button
-            onClick={() => setFilters((p) => ({ ...p, search: "" }))}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Icon icon={Close} className="size-3.5" />
-          </button>
-        )}
-      </div>
-
-      {/* ── Compact filter panel ─────────────────────────────────── */}
-      {filtersOpen && (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col gap-4 p-4">
-            {/* Keyword chips */}
-            {availableKeywords.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Keywords
+        <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="h-10 shrink-0 gap-2">
+              <Icon icon={SlidersHorizontal} data-icon="inline-start" />
+              Filter
+              {activeFilterCount > 0 && (
+                <span className="flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                  {activeFilterCount}
                 </span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80 p-0">
+            <PopoverHeader className="border-b px-4 py-3">
+              <PopoverTitle>Filters</PopoverTitle>
+            </PopoverHeader>
+
+            <div className="flex max-h-[min(60vh,420px)] flex-col gap-4 overflow-y-auto p-4">
+              <div className="flex flex-col gap-2">
+                <Label>Keywords</Label>
                 {keywordsLoading ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <Skeleton key={i} className="h-6 w-16" />
+                  <div className="flex flex-col gap-2">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <Skeleton key={i} className="h-5 w-full" />
                     ))}
                   </div>
+                ) : availableKeywords.length === 0 ? (
+                  <p className="text-muted-foreground">No keywords available</p>
                 ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {(availableKeywords as string[]).map((keyword) => (
-                      <Badge
-                        key={keyword}
-                        variant={filters.keywords.includes(keyword) ? "default" : "outline"}
-                        className="cursor-pointer capitalize text-xs transition-all hover:scale-105"
-                        onClick={() => toggleKeyword(keyword)}
-                      >
-                        {keyword}
-                        {filters.keywords.includes(keyword) && (
-                          <Icon icon={Close} className="ml-1 size-3" />
-                        )}
-                      </Badge>
-                    ))}
+                  <div className="flex max-h-36 flex-col gap-2 overflow-y-auto pr-1">
+                    {(availableKeywords as string[]).map((keyword) => {
+                      const checked = draftFilters.keywords.includes(keyword)
+                      return (
+                        <label
+                          key={keyword}
+                          className="flex cursor-pointer items-center gap-2 capitalize"
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={() => toggleDraftKeyword(keyword)}
+                          />
+                          <span>{keyword}</span>
+                        </label>
+                      )
+                    })}
                   </div>
                 )}
               </div>
-            )}
 
-            {/* Inline numeric filters */}
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-muted-foreground">Min Rating</span>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  min={0}
-                  max={5}
-                  step={0.1}
-                  value={filters.minRating}
-                  onChange={(e) => setFilters((p) => ({ ...p, minRating: e.target.value }))}
-                  className="h-8 w-24"
-                />
+              <Separator />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="min-rating">Min rating</Label>
+                  <Input
+                    id="min-rating"
+                    type="number"
+                    placeholder="0"
+                    min={0}
+                    max={5}
+                    step={0.1}
+                    value={draftFilters.minRating}
+                    onChange={(e) =>
+                      setDraftFilters((p) => ({ ...p, minRating: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="min-reviews">Min reviews (30d)</Label>
+                  <Input
+                    id="min-reviews"
+                    type="number"
+                    placeholder="0"
+                    min={0}
+                    value={draftFilters.minReviews}
+                    onChange={(e) =>
+                      setDraftFilters((p) => ({ ...p, minReviews: e.target.value }))
+                    }
+                  />
+                </div>
               </div>
 
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-muted-foreground">Min Reviews (30d)</span>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="min-trending">Min trending %</Label>
                 <Input
-                  type="number"
-                  placeholder="0"
-                  min={0}
-                  step={1}
-                  value={filters.minReviews}
-                  onChange={(e) => setFilters((p) => ({ ...p, minReviews: e.target.value }))}
-                  className="h-8 w-28"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-muted-foreground">Min Trending %</span>
-                <Input
+                  id="min-trending"
                   type="number"
                   placeholder="0"
                   min={0}
                   max={100}
-                  step={1}
-                  value={filters.minTrending}
-                  onChange={(e) => setFilters((p) => ({ ...p, minTrending: e.target.value }))}
-                  className="h-8 w-24"
+                  value={draftFilters.minTrending}
+                  onChange={(e) =>
+                    setDraftFilters((p) => ({ ...p, minTrending: e.target.value }))
+                  }
                 />
               </div>
 
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-muted-foreground">Price</span>
+              <div className="flex flex-col gap-1.5">
+                <Label>Price</Label>
                 <Select
-                  value={filters.priceType}
+                  value={draftFilters.priceType}
                   onValueChange={(v) =>
-                    setFilters((p) => ({ ...p, priceType: v as "all" | "free" | "paid" }))
+                    setDraftFilters((p) => ({
+                      ...p,
+                      priceType: v as "all" | "free" | "paid",
+                    }))
                   }
                 >
-                  <SelectTrigger className="h-8 w-28">
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -424,30 +434,21 @@ export default function ExplorerPage() {
                 </Select>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* ── Active keyword pills (always visible when filters collapsed) */}
-      {!filtersOpen && filters.keywords.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Icon icon={Filter} className="size-3.5 text-muted-foreground" />
-          {filters.keywords.map((kw) => (
-            <Badge
-              key={kw}
-              variant="default"
-              className="cursor-pointer capitalize text-xs"
-              onClick={() => toggleKeyword(kw)}
-            >
-              {kw}
-              <Icon icon={Close} className="ml-1 size-3" />
-            </Badge>
-          ))}
-        </div>
-      )}
+            <div className="flex items-center justify-between border-t px-4 py-3">
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <Icon icon={RotateLeft01Icon} data-icon="inline-start" />
+                Clear
+              </Button>
+              <Button size="sm" onClick={applyFilters}>
+                Apply filters
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
 
-      {/* ── Results table ────────────────────────────────────────── */}
-      <Card>
+      <Card className="glass-card overflow-hidden">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">
@@ -455,10 +456,7 @@ export default function ExplorerPage() {
                 "Loading..."
               ) : (
                 <>
-                  {displayedApps.length} apps
-                  {pageSize !== "all" && displayedApps.length < sortedApps.length && (
-                    <span className="text-muted-foreground"> (of {sortedApps.length})</span>
-                  )}
+                  {sortedApps.length} apps
                   {isFetching && !appsLoading && (
                     <Icon icon={LoaderCircle} className="ml-2 inline size-4 animate-spin" />
                   )}
@@ -468,13 +466,26 @@ export default function ExplorerPage() {
             <div className="flex items-center gap-2">
               {sortKey && (
                 <button
-                  onClick={() => { setSortKey(null); setSortDir("desc") }}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  type="button"
+                  onClick={() => {
+                    setSortKey(null)
+                    setSortDir("desc")
+                  }}
+                  className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
                   <Icon icon={Close} className="size-3" />
                   Clear sort
                 </button>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => exportAppsToCsv(sortedApps)}
+                disabled={sortedApps.length === 0}
+              >
+                <Icon icon={Download01Icon} data-icon="inline-start" />
+                Export
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"
@@ -482,7 +493,11 @@ export default function ExplorerPage() {
                 disabled={isFetching}
                 className="h-7"
               >
-                {isFetching ? <Icon icon={LoaderCircle} className="size-3 animate-spin" /> : "Refresh"}
+                {isFetching ? (
+                  <Icon icon={LoaderCircle} className="size-3 animate-spin" />
+                ) : (
+                  "Refresh"
+                )}
               </Button>
             </div>
           </div>
@@ -494,12 +509,12 @@ export default function ExplorerPage() {
                 <Skeleton key={i} className="h-10 w-full" />
               ))}
             </div>
-          ) : displayedApps.length === 0 ? (
+          ) : sortedApps.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
               <Icon icon={Search01Icon} className="size-10 opacity-40" />
-              <p className="text-sm">No apps match your filters</p>
-              <Button variant="outline" size="sm" onClick={resetFilters}>
-                Reset Filters
+              <p className="text-sm">No apps match your search or filters</p>
+              <Button variant="outline" size="sm" onClick={clearFilters}>
+                Clear filters
               </Button>
             </div>
           ) : (
@@ -509,6 +524,7 @@ export default function ExplorerPage() {
                   <TableRow className="hover:bg-transparent">
                     <TableHead>
                       <button
+                        type="button"
                         className="flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
                         onClick={() => handleSort("title")}
                       >
@@ -518,6 +534,7 @@ export default function ExplorerPage() {
                     </TableHead>
                     <TableHead>
                       <button
+                        type="button"
                         className="flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
                         onClick={() => handleSort("keyword")}
                       >
@@ -527,6 +544,7 @@ export default function ExplorerPage() {
                     </TableHead>
                     <TableHead>
                       <button
+                        type="button"
                         className="flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
                         onClick={() => handleSort("rating")}
                       >
@@ -536,6 +554,7 @@ export default function ExplorerPage() {
                     </TableHead>
                     <TableHead>
                       <button
+                        type="button"
                         className="flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
                         onClick={() => handleSort("review_count")}
                       >
@@ -545,6 +564,7 @@ export default function ExplorerPage() {
                     </TableHead>
                     <TableHead>
                       <button
+                        type="button"
                         className="flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
                         onClick={() => handleSort("recent_reviews_30_days")}
                       >
@@ -554,6 +574,17 @@ export default function ExplorerPage() {
                     </TableHead>
                     <TableHead>
                       <button
+                        type="button"
+                        className="flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
+                        onClick={() => handleSort("opportunity_score")}
+                      >
+                        Opportunity
+                        <SortIcon column="opportunity_score" sortKey={sortKey} sortDir={sortDir} />
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button
+                        type="button"
                         className="flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
                         onClick={() => handleSort("trending_score")}
                       >
@@ -563,6 +594,7 @@ export default function ExplorerPage() {
                     </TableHead>
                     <TableHead>
                       <button
+                        type="button"
                         className="flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
                         onClick={() => handleSort("price")}
                       >
@@ -572,6 +604,7 @@ export default function ExplorerPage() {
                     </TableHead>
                     <TableHead>
                       <button
+                        type="button"
                         className="flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
                         onClick={() => handleSort("relevance_score")}
                       >
@@ -583,13 +616,17 @@ export default function ExplorerPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {displayedApps.map((app) => (
-                    <TableRow key={app.id} className="group">
+                  {sortedApps.map((app) => (
+                    <TableRow
+                      key={app.id}
+                      className="group row-hover-lift cursor-pointer"
+                      onClick={() => openApp(app)}
+                    >
                       <TableCell className="max-w-[240px] truncate font-medium">
                         {app.title}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="capitalize text-xs font-normal">
+                        <Badge variant="secondary" className="text-xs font-normal capitalize">
                           {app.keyword}
                         </Badge>
                       </TableCell>
@@ -617,25 +654,11 @@ export default function ExplorerPage() {
                         )}
                       </TableCell>
                       <TableCell>
+                        <OpportunityScore score={app.opportunityScore} size="sm" />
+                      </TableCell>
+                      <TableCell>
                         {app.trending_score > 0 ? (
-                          <div className="flex items-center gap-1">
-                            <Icon icon={Flame}
-                              className={`size-3.5 ${
-                                app.trending_score > 50
-                                  ? "fill-current text-orange-500"
-                                  : "text-muted-foreground"
-                              }`}
-                            />
-                            <span
-                              className={`tabular-nums ${
-                                app.trending_score > 50
-                                  ? "font-semibold text-orange-500"
-                                  : ""
-                              }`}
-                            >
-                              {app.trending_score.toFixed(1)}%
-                            </span>
-                          </div>
+                          <MomentumBar value={app.trending_score} />
                         ) : (
                           <span className="text-muted-foreground">–</span>
                         )}
@@ -652,6 +675,7 @@ export default function ExplorerPage() {
                           size="icon"
                           className="size-7 opacity-0 transition-opacity group-hover:opacity-100"
                           asChild
+                          onClick={(event) => event.stopPropagation()}
                         >
                           <a href={app.url} target="_blank" rel="noopener noreferrer">
                             <Icon icon={ExternalLink} className="size-3.5" />
@@ -666,6 +690,13 @@ export default function ExplorerPage() {
           )}
         </CardContent>
       </Card>
+
+      <AppDetailSheet
+        app={selectedApp}
+        category={selectedApp ? categoryByKeyword.get(selectedApp.keyword) : null}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+      />
     </div>
   )
 }

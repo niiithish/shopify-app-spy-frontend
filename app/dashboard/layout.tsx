@@ -1,5 +1,7 @@
 "use client"
 
+import { LiveBadge } from "@/components/analytics/visual-primitives"
+import { useStats } from "@/hooks/use-queries"
 import {
   Sidebar,
   SidebarContent,
@@ -10,7 +12,6 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
-  SidebarTrigger,
 } from "@/components/ui/sidebar"
 import {
   DashboardSquare01Icon,
@@ -24,7 +25,7 @@ import { usePathname } from "next/navigation"
 
 const navItems = [
   {
-    title: "Dashboard",
+    title: "Intelligence",
     href: "/dashboard",
     icon: DashboardSquare01Icon,
   },
@@ -45,12 +46,15 @@ function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader>
-        <div className="flex items-center gap-2 px-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Icon icon={TrendingUp} className="size-4" />
+      <SidebarHeader className="px-2 py-3">
+        <div className="flex items-center gap-2">
+          <div className="relative flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <Icon icon={TrendingUp} className="relative size-3.5" />
           </div>
-          <span className="font-semibold">Shopify Spy</span>
+          <div className="min-w-0 flex flex-col">
+            <span className="truncate text-sm font-semibold leading-none">Shopify Spy</span>
+            <span className="truncate text-[10px] text-muted-foreground">App intelligence</span>
+          </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -88,6 +92,29 @@ function AppSidebar() {
   )
 }
 
+function DashboardHeader() {
+  const { data: stats } = useStats()
+  const lastUpdate = stats?.latest_scrape
+    ? new Date(stats.latest_scrape).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : null
+
+  return (
+    <div className="flex h-12 items-center justify-between border-b border-border/60 bg-card/40 px-4 backdrop-blur-sm lg:px-6">
+      <div className="flex flex-col">
+        <span className="text-sm font-medium">Shopify Spy</span>
+        <span className="text-[11px] text-muted-foreground">
+          {lastUpdate ? `Updated ${lastUpdate}` : "Scanning the app store"}
+        </span>
+      </div>
+      <LiveBadge />
+    </div>
+  )
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -96,13 +123,8 @@ export default function DashboardLayout({
   return (
     <SidebarProvider>
       <AppSidebar />
-      <main className="flex-1 overflow-auto">
-        <div className="flex h-14 items-center border-b px-4 lg:px-6">
-          <SidebarTrigger className="mr-2" />
-          <h1 className="text-sm font-medium text-muted-foreground">
-            Shopify App Intelligence
-          </h1>
-        </div>
+      <main className="ambient-bg flex-1 overflow-auto">
+        <DashboardHeader />
         <div className="p-4 lg:p-6">{children}</div>
       </main>
     </SidebarProvider>
