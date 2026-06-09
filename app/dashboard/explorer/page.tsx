@@ -49,12 +49,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { Icon } from "@/lib/icons"
 import { useApps, useKeywords } from "@/hooks/use-queries"
-import {
-  computeCategoryInsights,
-  exportAppsToCsv,
-  scoreApps,
-  type ScoredApp,
-} from "@/lib/analytics"
+import { exportAppsToCsv, scoreApps, type ScoredApp } from "@/lib/analytics"
 import { AppDetailSheet } from "@/components/analytics/app-detail-sheet"
 import {
   LiveBadge,
@@ -170,12 +165,6 @@ export default function ExplorerPage() {
   }
 
   const scoredApps = useMemo(() => scoreApps(apps), [apps])
-  const categories = useMemo(() => computeCategoryInsights(apps), [apps])
-  const categoryByKeyword = useMemo(
-    () => new Map(categories.map((category) => [category.keyword, category])),
-    [categories]
-  )
-
   const sortedApps = useMemo(() => {
     let result = [...scoredApps]
 
@@ -693,7 +682,6 @@ export default function ExplorerPage() {
 
       <AppDetailSheet
         app={selectedApp}
-        category={selectedApp ? categoryByKeyword.get(selectedApp.keyword) : null}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
       />

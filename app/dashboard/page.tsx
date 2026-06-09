@@ -101,14 +101,6 @@ export default function DashboardPage() {
     [categories]
   )
 
-  const categoryByKeyword = useMemo(() => {
-    const map = new Map<string, CategoryInsight>()
-    for (const category of categories) {
-      map.set(category.keyword, category)
-    }
-    return map
-  }, [categories])
-
   const openApp = (app: ScoredApp) => {
     setSelectedApp(app)
     setSheetOpen(true)
@@ -492,7 +484,6 @@ export default function DashboardPage() {
 
       <AppDetailSheet
         app={selectedApp}
-        category={selectedApp ? categoryByKeyword.get(selectedApp.keyword) : null}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
       />

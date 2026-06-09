@@ -142,6 +142,21 @@ export async function getAllApps(): Promise<AppResult[]> {
   return rows.map(parseRow)
 }
 
+export async function getAppById(id: number): Promise<AppResult | null> {
+  const data = await executeQuery(
+    `SELECT id, keyword, title, url, rating, review_count, price, 
+            relevance_score, recent_reviews_30_days, trending_score, created_at, updated_at
+     FROM search_results
+     WHERE id = ?
+     LIMIT 1`,
+    [id]
+  )
+
+  const row = data.results?.[0]?.response?.result?.rows?.[0]
+  if (!row) return null
+  return parseRow(row)
+}
+
 export async function getAppsByKeyword(keyword: string): Promise<AppResult[]> {
   const data = await executeQuery(
     `SELECT id, keyword, title, url, rating, review_count, price, 

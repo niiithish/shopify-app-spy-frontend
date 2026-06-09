@@ -11,6 +11,8 @@ export interface AppRecord {
   relevance_score: number
   recent_reviews_30_days: number
   trending_score: number
+  created_at?: string
+  updated_at?: string
 }
 
 export interface ScoredApp extends AppRecord {
