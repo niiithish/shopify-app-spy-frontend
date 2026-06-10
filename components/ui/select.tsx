@@ -4,8 +4,7 @@ import * as React from "react"
 import { Select as SelectPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
-import { ChevronDown, ChevronUp, CheckmarkCircle01Icon } from "@hugeicons/core-free-icons"
-import { Icon } from "@/lib/icons"
+import { CaretDown, CaretUp, Check } from "@phosphor-icons/react"
 
 function Select({
   ...props
@@ -52,7 +51,7 @@ function SelectTrigger({
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <Icon icon={ChevronDown} className="pointer-events-none size-3.5 text-muted-foreground" />
+        <CaretDown className="pointer-events-none size-3.5 text-muted-foreground" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   )
@@ -120,7 +119,7 @@ function SelectItem({
     >
       <span className="pointer-events-none absolute right-2 flex items-center justify-center">
         <SelectPrimitive.ItemIndicator>
-          <Icon icon={CheckmarkCircle01Icon} className="pointer-events-none" />
+          <Check className="pointer-events-none" />
         </SelectPrimitive.ItemIndicator>
       </span>
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
@@ -157,8 +156,7 @@ function SelectScrollUpButton({
       )}
       {...props}
     >
-      <Icon icon={ChevronUp}
-      />
+      <CaretUp />
     </SelectPrimitive.ScrollUpButton>
   )
 }
@@ -176,8 +174,7 @@ function SelectScrollDownButton({
       )}
       {...props}
     >
-      <Icon icon={ChevronDown}
-      />
+      <CaretDown />
     </SelectPrimitive.ScrollDownButton>
   )
 }

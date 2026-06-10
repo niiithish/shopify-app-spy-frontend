@@ -185,6 +185,14 @@ function buildSignals(
   return signals
 }
 
+export function getRankedOpportunities(scoredApps: ScoredApp[], limit = 15): ScoredApp[] {
+  const qualified = scoredApps.filter(
+    (app) => app.recent_reviews_30_days >= MIN_RECENT_REVIEWS_FOR_SCORE
+  )
+  const pool = qualified.length > 0 ? qualified : scoredApps
+  return [...pool].sort((a, b) => b.opportunityScore - a.opportunityScore).slice(0, limit)
+}
+
 export function scoreApps(apps: AppRecord[]): ScoredApp[] {
   const keywordCounts = buildKeywordCounts(apps)
   const maxKeywordCount = Math.max(...keywordCounts.values(), 1)
@@ -290,9 +298,6 @@ export function computeCategoryInsights(apps: AppRecord[]): CategoryInsight[] {
 export function computeMarketSummary(apps: AppRecord[]): MarketSummary {
   const scored = scoreApps(apps)
   const categories = computeCategoryInsights(apps)
-  const sortedByOpportunity = [...scored].sort(
-    (a, b) => b.opportunityScore - a.opportunityScore
-  )
   const sortedByMomentum = [...scored].sort(
     (a, b) => b.trending_score - a.trending_score
   )
@@ -304,7 +309,7 @@ export function computeMarketSummary(apps: AppRecord[]): MarketSummary {
       : competitionCounts[Math.floor(competitionCounts.length / 2)]
 
   return {
-    topOpportunity: sortedByOpportunity[0] ?? null,
+    topOpportunity: getRankedOpportunities(scored, 1)[0] ?? null,
     bestNiche: categories[0] ?? null,
     hottestMomentum: sortedByMomentum[0] ?? null,
     totalRecentReviews: apps.reduce((sum, app) => sum + app.recent_reviews_30_days, 0),

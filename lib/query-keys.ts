@@ -27,6 +27,12 @@ export const statsKeys = {
   overview: () => [...statsKeys.all, "overview"] as const,
 }
 
+// Market analytics query keys
+export const analyticsKeys = {
+  all: ["analytics"] as const,
+  market: () => [...analyticsKeys.all, "market"] as const,
+}
+
 // Type definitions for filters
 export interface AppFilters {
   keywords?: string[]

@@ -22,8 +22,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { PanelLeftOpenIcon } from "@hugeicons/core-free-icons"
-import { Icon } from "@/lib/icons"
+import { Sidebar as SidebarIcon } from "@phosphor-icons/react"
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
@@ -271,7 +270,7 @@ function SidebarTrigger({
       }}
       {...props}
     >
-      <Icon icon={PanelLeftOpenIcon} />
+      <SidebarIcon className="size-4" />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   )

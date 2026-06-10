@@ -8,12 +8,12 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
-  Calendar03Icon,
-  ExternalLink,
-  Link01Icon,
-  Tag01Icon,
-} from "@hugeicons/core-free-icons"
-import { Icon } from "@/lib/icons"
+  ArrowSquareOut,
+  CalendarBlank,
+  Link as LinkIcon,
+  Tag,
+} from "@phosphor-icons/react"
+import { Icon, type PhosphorIcon } from "@/lib/icons"
 import {
   MIN_RECENT_REVIEWS_FOR_SCORE,
   computeCategoryInsights,
@@ -64,7 +64,7 @@ function DataRow({
   label: string
   value: string
   link?: boolean
-  icon?: typeof Calendar03Icon
+  icon?: PhosphorIcon
 }) {
   return (
     <div className="flex items-start justify-between gap-3">
@@ -79,7 +79,7 @@ function DataRow({
           rel="noopener noreferrer"
           className="flex max-w-[240px] items-center gap-1 truncate text-right text-primary hover:underline"
         >
-          <Icon icon={Link01Icon} />
+          <LinkIcon />
           <span className="truncate">{value.replace(/^https?:\/\//, "")}</span>
         </a>
       ) : (
@@ -119,7 +119,7 @@ export function AppDetailContent({ app, relatedApps }: AppDetailContentProps) {
           <OpportunityScore score={app.opportunityScore} size="lg" />
           <Button asChild>
             <a href={app.url} target="_blank" rel="noopener noreferrer">
-              <Icon icon={ExternalLink} data-icon="inline-start" />
+              <ArrowSquareOut data-icon="inline-start" />
               App Store
             </a>
           </Button>
@@ -164,7 +164,7 @@ export function AppDetailContent({ app, relatedApps }: AppDetailContentProps) {
       {category && (
         <section className="flex flex-col gap-3 rounded-xl border p-4">
           <div className="flex items-center gap-2">
-            <Icon icon={Tag01Icon} />
+            <Tag className="size-4" />
             <p className="text-sm font-medium capitalize">{app.keyword} niche</p>
           </div>
           <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
@@ -204,8 +204,8 @@ export function AppDetailContent({ app, relatedApps }: AppDetailContentProps) {
         <p className="text-sm font-medium">Collected data</p>
         <div className="flex flex-col gap-2 text-sm">
           <DataRow label="App Store URL" value={app.url} link />
-          <DataRow icon={Calendar03Icon} label="First tracked" value={formatDate(app.created_at)} />
-          <DataRow icon={Calendar03Icon} label="Last updated" value={formatDate(app.updated_at)} />
+          <DataRow icon={CalendarBlank} label="First tracked" value={formatDate(app.created_at)} />
+          <DataRow icon={CalendarBlank} label="Last updated" value={formatDate(app.updated_at)} />
         </div>
         <p className="text-xs text-muted-foreground">
           Description and full listing copy aren&apos;t stored in the database yet. Use the App Store

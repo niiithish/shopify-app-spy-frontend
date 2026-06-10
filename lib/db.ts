@@ -130,6 +130,18 @@ function parseRow(row: TursoValue[]): AppResult {
   }
 }
 
+export async function getAllAppsForAnalytics(): Promise<AppResult[]> {
+  const data = await executeQuery(
+    `SELECT id, keyword, title, url, rating, review_count, price, 
+            relevance_score, recent_reviews_30_days, trending_score, created_at, updated_at
+     FROM search_results
+     ORDER BY relevance_score DESC`
+  )
+
+  const rows = data.results?.[0]?.response?.result?.rows || []
+  return rows.map(parseRow)
+}
+
 export async function getAllApps(options?: {
   page?: number
   limit?: number

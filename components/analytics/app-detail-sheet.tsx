@@ -2,6 +2,13 @@
 
 import Link from "next/link"
 import {
+  ArrowRight,
+  ArrowSquareOut,
+  ChatCircle,
+  Flame,
+  Star,
+} from "@phosphor-icons/react"
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -10,14 +17,7 @@ import {
 } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  ArrowRight01Icon,
-  ExternalLink,
-  Flame,
-  Message01Icon,
-  Star,
-} from "@hugeicons/core-free-icons"
-import { Icon } from "@/lib/icons"
+import { Icon, type PhosphorIcon } from "@/lib/icons"
 import type { ScoredApp } from "@/lib/analytics"
 import { OpportunityScore, SignalPill } from "@/components/analytics/visual-primitives"
 
@@ -33,7 +33,7 @@ function StatTile({
   value,
   highlight,
 }: {
-  icon: typeof Star
+  icon: PhosphorIcon
   label: string
   value: string
   highlight?: boolean
@@ -92,9 +92,9 @@ export function AppDetailSheet({ app, open, onOpenChange }: AppDetailSheetProps)
 
           <div className="grid grid-cols-2 gap-3">
             <StatTile icon={Star} label="Rating" value={app.rating || "—"} />
-            <StatTile icon={Message01Icon} label="Total reviews" value={app.review_count || "—"} />
+            <StatTile icon={ChatCircle} label="Total reviews" value={app.review_count || "—"} />
             <StatTile
-              icon={Message01Icon}
+              icon={ChatCircle}
               label="Recent (30d)"
               value={String(app.recent_reviews_30_days)}
               highlight
@@ -127,13 +127,13 @@ export function AppDetailSheet({ app, open, onOpenChange }: AppDetailSheetProps)
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <Icon icon={ArrowRight01Icon} data-icon="inline-start" />
+                <ArrowRight data-icon="inline-start" />
                 View more
               </Link>
             </Button>
             <Button variant="outline" asChild>
               <a href={app.url} target="_blank" rel="noopener noreferrer">
-                <Icon icon={ExternalLink} data-icon="inline-start" />
+                <ArrowSquareOut data-icon="inline-start" />
                 Open in App Store
               </a>
             </Button>

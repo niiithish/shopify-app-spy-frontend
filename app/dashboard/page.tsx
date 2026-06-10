@@ -23,33 +23,28 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart"
 import {
-  Analytics01Icon,
+  ChartBar,
   Flame,
-  Idea01Icon,
-  Search01Icon,
+  Lightbulb,
+  MagnifyingGlass,
   Star,
-  Tag01Icon,
-  TrendingUp,
-} from "@hugeicons/core-free-icons"
-import { Icon } from "@/lib/icons"
-import { useApps, useStats } from "@/hooks/use-queries"
+  Tag,
+  TrendUp,
+} from "@phosphor-icons/react"
+import { Icon, type PhosphorIcon } from "@/lib/icons"
+import { useMarketAnalytics, useStats } from "@/hooks/use-queries"
 import {
-  computeCategoryInsights,
-  computeMarketSummary,
-  scoreApps,
   type CategoryInsight,
   type ScoredApp,
 } from "@/lib/analytics"
 import { AppDetailSheet } from "@/components/analytics/app-detail-sheet"
 import {
   AnimatedStat,
-  LiveBadge,
   MomentumBar,
   OpportunityScore,
   RankBadge,
   SignalPill,
   SpotlightHero,
-  Stagger,
 } from "@/components/analytics/visual-primitives"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
@@ -65,20 +60,24 @@ const momentumChartConfig = {
 
 export default function DashboardPage() {
   const { data: stats, isLoading: statsLoading, isError: statsError } = useStats()
-  const { data: paginated, isLoading: appsLoading } = useApps()
-  const apps = paginated?.apps ?? []
+  const {
+    data: market,
+    isLoading: marketLoading,
+    isError: marketError,
+  } = useMarketAnalytics()
   const [selectedApp, setSelectedApp] = useState<ScoredApp | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
-  const isLoading = statsLoading || appsLoading
-
-  const scoredApps = useMemo(() => scoreApps(apps), [apps])
-  const categories = useMemo(() => computeCategoryInsights(apps), [apps])
-  const summary = useMemo(() => computeMarketSummary(apps), [apps])
-  const topOpportunities = useMemo(
-    () => [...scoredApps].sort((a, b) => b.opportunityScore - a.opportunityScore).slice(0, 15),
-    [scoredApps]
-  )
+  const isLoading = statsLoading || marketLoading
+  const summary = market?.summary ?? {
+    topOpportunity: null,
+    bestNiche: null,
+    hottestMomentum: null,
+    totalRecentReviews: 0,
+    medianCompetition: 0,
+  }
+  const categories: CategoryInsight[] = market?.categories ?? []
+  const topOpportunities = market?.topOpportunities ?? []
 
   const nicheChartData = useMemo(
     () =>
@@ -107,7 +106,7 @@ export default function DashboardPage() {
     setSheetOpen(true)
   }
 
-  if (statsError) {
+  if (statsError || marketError) {
     return (
       <Alert variant="destructive">
         <AlertTitle>Error</AlertTitle>
@@ -118,19 +117,16 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="animate-fade-in-up flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="mb-2 flex items-center gap-2">
-            <LiveBadge label="Market pulse" />
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">Market Intelligence</h1>
-          <p className="text-muted-foreground">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-xl font-semibold tracking-tight">Market Intelligence</h1>
+          <p className="max-w-xl text-sm text-muted-foreground">
             What&apos;s heating up, where the gaps are, and which apps deserve a closer look
           </p>
         </div>
         <Button variant="outline" size="sm" asChild>
           <Link href="/dashboard/explorer">
-            <Icon icon={Search01Icon} data-icon="inline-start" />
+            <MagnifyingGlass data-icon="inline-start" />
             Deep dive in Explorer
           </Link>
         </Button>
@@ -144,26 +140,24 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <InsightCard
-          index={0}
           title="Top Opportunity"
-          icon={Idea01Icon}
-          accent="primary"
+          icon={Lightbulb}
           loading={isLoading}
           value={summary.topOpportunity?.title ?? "—"}
           hint={
             summary.topOpportunity
               ? `Score ${summary.topOpportunity.opportunityScore} · ${summary.topOpportunity.keyword}`
-              : "No apps in database"
+              : stats?.total_apps
+                ? "No apps meet the scoring threshold yet"
+                : "No apps in database"
           }
           onClick={
             summary.topOpportunity ? () => openApp(summary.topOpportunity!) : undefined
           }
         />
         <InsightCard
-          index={1}
           title="Best Niche"
-          icon={Tag01Icon}
-          accent="chart-2"
+          icon={Tag}
           loading={isLoading}
           value={summary.bestNiche?.keyword ?? "—"}
           hint={
@@ -173,10 +167,8 @@ export default function DashboardPage() {
           }
         />
         <InsightCard
-          index={2}
           title="Hottest Momentum"
           icon={Flame}
-          accent="hot"
           loading={isLoading}
           value={summary.hottestMomentum?.title ?? "—"}
           hint={
@@ -189,10 +181,8 @@ export default function DashboardPage() {
           }
         />
         <InsightCard
-          index={3}
           title="Apps Tracked"
-          icon={Analytics01Icon}
-          accent="muted"
+          icon={ChartBar}
           loading={isLoading}
           numericValue={stats?.total_apps ?? 0}
           value={stats?.total_apps?.toLocaleString() ?? "0"}
@@ -208,7 +198,7 @@ export default function DashboardPage() {
         </TabsList>
 
         <TabsContent value="opportunities" className="flex flex-col gap-4">
-          <Card className="glass-card overflow-hidden">
+          <Card className="overflow-hidden">
             <CardHeader>
               <CardTitle>Opportunity Leaderboard</CardTitle>
               <CardDescription>
@@ -224,7 +214,11 @@ export default function DashboardPage() {
                   ))}
                 </div>
               ) : topOpportunities.length === 0 ? (
-                <p className="px-6 pb-6 text-muted-foreground">No apps to analyze yet.</p>
+                <p className="px-6 pb-6 text-muted-foreground">
+                  {stats?.total_apps
+                    ? "No apps meet the 5+ recent review threshold for opportunity scoring."
+                    : "No apps to analyze yet."}
+                </p>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
@@ -335,7 +329,7 @@ export default function DashboardPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1 tabular-nums">
-                              <Icon icon={Star} />
+                              <Star className="size-4" />
                               {category.avgRating}
                             </div>
                           </TableCell>
@@ -459,7 +453,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <Icon icon={TrendingUp} />
+                <TrendUp className="size-4" />
                 <CardTitle>How to read this</CardTitle>
               </div>
             </CardHeader>
@@ -493,75 +487,55 @@ export default function DashboardPage() {
 }
 
 function InsightCard({
-  index,
   title,
   icon,
-  accent,
   loading,
   value,
   numericValue,
   hint,
   onClick,
 }: {
-  index: number
+  index?: number
   title: string
-  icon: typeof Idea01Icon
-  accent: "primary" | "chart-2" | "hot" | "muted"
+  icon: PhosphorIcon
+  accent?: "primary" | "chart-2" | "hot" | "muted"
   loading: boolean
   value: string
   numericValue?: number
   hint: string
   onClick?: () => void
 }) {
-  const accentClass = {
-    primary: "border-primary/25 from-primary/10",
-    "chart-2": "border-chart-2/25 from-chart-2/10",
-    hot: "border-primary/30 from-primary/15",
-    muted: "border-border from-muted/30",
-  }[accent]
-
   const content = (
     <Card
       className={cn(
-        "glass-card relative overflow-hidden transition-all duration-300",
-        accentClass,
-        onClick && "hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+        "h-full transition-colors",
+        onClick && "cursor-pointer hover:bg-muted/30"
       )}
     >
-      <div className="pointer-events-none absolute -right-6 -top-6 size-20 rounded-full bg-primary/10 blur-2xl" />
-      <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <div
-          className={cn(
-            "flex size-8 items-center justify-center rounded-lg",
-            accent === "hot" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
-          )}
-        >
-          <Icon icon={icon} className={accent === "hot" ? "animate-flame" : undefined} />
-        </div>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-xs font-medium text-muted-foreground">{title}</CardTitle>
+        <Icon icon={icon} className="size-4 text-muted-foreground" />
       </CardHeader>
-      <CardContent className="relative">
+      <CardContent>
         {loading ? (
           <Skeleton className="h-7 w-32" />
         ) : numericValue !== undefined ? (
           <AnimatedStat value={numericValue} className="text-2xl" />
         ) : (
-          <div className="truncate text-lg font-bold">{value}</div>
+          <div className="line-clamp-2 text-base font-semibold leading-snug">{value}</div>
         )}
-        <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{hint}</p>
       </CardContent>
     </Card>
   )
 
-  const wrapped = <Stagger index={index}>{content}</Stagger>
-
   if (onClick) {
     return (
-      <button type="button" className="text-left" onClick={onClick}>
-        {wrapped}
+      <button type="button" className="h-full text-left" onClick={onClick}>
+        {content}
       </button>
     )
   }
 
-  return wrapped
+  return content
 }

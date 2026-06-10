@@ -14,12 +14,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { TrendingUp, Star, Message01Icon, ExternalLink, Flame, LoaderCircle } from "@hugeicons/core-free-icons"
-import { Icon } from "@/lib/icons"
+import {
+  ArrowSquareOut,
+  ChatCircle,
+  CircleNotch,
+  Flame,
+  Star,
+  TrendUp,
+} from "@phosphor-icons/react"
 import { useApps, type AppResult } from "@/hooks/use-queries"
 import {
   AnimatedStat,
-  LiveBadge,
   MomentumBar,
   RankBadge,
 } from "@/components/analytics/visual-primitives"
@@ -64,20 +69,17 @@ export default function TrendingPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="animate-fade-in-up flex items-center justify-between">
-        <div>
-          <div className="mb-2">
-            <LiveBadge label="Momentum feed" />
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">Trending Apps</h1>
-          <p className="text-muted-foreground">
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h1 className="text-xl font-semibold tracking-tight">Trending Apps</h1>
+          <p className="text-sm text-muted-foreground">
             {sortMode === "trending_score"
               ? "Apps with highest % of recent reviews vs total (new/trending apps)"
               : "Apps with the most reviews in the last 30 days"}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-          {isFetching ? <Icon icon={LoaderCircle} className="mr-2 size-4 animate-spin" /> : null}
+          {isFetching ? <CircleNotch className="mr-2 size-4 animate-spin" /> : null}
           Refresh
         </Button>
       </div>
@@ -88,7 +90,7 @@ export default function TrendingPage() {
           size="sm"
           onClick={() => setSortMode("trending_score")}
         >
-          <Icon icon={Flame} className="mr-2 size-4" />
+          <Flame className="mr-2 size-4" />
           By Trending Score
         </Button>
         <Button
@@ -96,22 +98,22 @@ export default function TrendingPage() {
           size="sm"
           onClick={() => setSortMode("recent_reviews")}
         >
-          <Icon icon={Message01Icon} className="mr-2 size-4" />
+          <ChatCircle className="mr-2 size-4" />
           By Recent Reviews
         </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="glass-card border-primary/20">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Hottest App</CardTitle>
-            <Icon icon={Flame} className="animate-flame text-primary" />
+            <CardTitle className="text-xs font-medium text-muted-foreground">Hottest App</CardTitle>
+            <Flame className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <Skeleton className="h-7 w-32" />
             ) : hottestApp ? (
-              <div className="text-lg font-bold truncate">{hottestApp.title}</div>
+              <div className="line-clamp-2 text-base font-semibold leading-snug">{hottestApp.title}</div>
             ) : (
               <div className="text-lg font-bold">-</div>
             )}
@@ -124,7 +126,7 @@ export default function TrendingPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Max Trending Score</CardTitle>
-            <Icon icon={TrendingUp} className="size-4 text-muted-foreground" />
+            <TrendUp className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -146,7 +148,7 @@ export default function TrendingPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Recent Reviews</CardTitle>
-            <Icon icon={Message01Icon} className="size-4 text-muted-foreground" />
+            <ChatCircle className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -161,7 +163,7 @@ export default function TrendingPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Trending Score</CardTitle>
-            <Icon icon={Flame} className="size-4 text-orange-500" />
+            <Flame className="size-4 text-orange-500" />
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -225,7 +227,7 @@ export default function TrendingPage() {
                       <TableCell>
                         {app.rating ? (
                           <div className="flex items-center gap-1">
-                            <Icon icon={Star} className="size-4 fill-current text-yellow-500" />
+                            <Star weight="fill" className="size-4 text-yellow-500" />
                             <span>{app.rating}</span>
                           </div>
                         ) : (
@@ -237,7 +239,7 @@ export default function TrendingPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Icon icon={Message01Icon} className="size-4 text-muted-foreground" />
+                          <ChatCircle className="size-4 text-muted-foreground" />
                           <span>{app.recent_reviews_30_days}</span>
                         </div>
                       </TableCell>
@@ -245,7 +247,7 @@ export default function TrendingPage() {
                       <TableCell>
                         <Button variant="ghost" size="icon" asChild>
                           <a href={app.url} target="_blank" rel="noopener noreferrer">
-                            <Icon icon={ExternalLink} className="size-4" />
+                            <ArrowSquareOut className="size-4" />
                           </a>
                         </Button>
                       </TableCell>

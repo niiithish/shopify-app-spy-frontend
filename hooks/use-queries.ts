@@ -1,7 +1,12 @@
 "use client"
 
 import { useQuery, queryOptions } from "@tanstack/react-query"
-import { appKeys, keywordKeys, statsKeys, type AppFilters } from "@/lib/query-keys"
+import { appKeys, keywordKeys, statsKeys, analyticsKeys, type AppFilters } from "@/lib/query-keys"
+import type {
+  CategoryInsight,
+  MarketSummary,
+  ScoredApp,
+} from "@/lib/analytics"
 
 // Types
 export interface AppResult {
@@ -35,6 +40,13 @@ export interface Stats {
   total_apps: number
   total_keywords: number
   latest_scrape: string | null
+}
+
+export interface MarketAnalytics {
+  summary: MarketSummary
+  categories: CategoryInsight[]
+  topOpportunities: ScoredApp[]
+  totalApps: number
 }
 
 // Query Options - for prefetching and type safety
@@ -75,6 +87,15 @@ export const statsQueries = {
     queryOptions({
       queryKey: statsKeys.overview(),
       queryFn: fetchStats,
+      staleTime: 5 * 60 * 1000,
+    }),
+}
+
+export const marketAnalyticsQueries = {
+  overview: () =>
+    queryOptions({
+      queryKey: analyticsKeys.market(),
+      queryFn: fetchMarketAnalytics,
       staleTime: 5 * 60 * 1000,
     }),
 }
@@ -148,6 +169,12 @@ async function fetchStats(): Promise<Stats> {
   return data.stats
 }
 
+async function fetchMarketAnalytics(): Promise<MarketAnalytics> {
+  const res = await fetch("/api/analytics/market")
+  if (!res.ok) throw new Error("Failed to fetch market analytics")
+  return res.json()
+}
+
 // Hooks
 export function useApps(filters?: AppFilters) {
   return useQuery({
@@ -177,5 +204,14 @@ export function useStats() {
     queryKey: statsKeys.overview(),
     queryFn: fetchStats,
     staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useMarketAnalytics() {
+  return useQuery({
+    queryKey: analyticsKeys.market(),
+    queryFn: fetchMarketAnalytics,
+    staleTime: 5 * 60 * 1000,
+    refetchOnMount: true,
   })
 }

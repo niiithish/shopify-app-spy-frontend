@@ -33,26 +33,23 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import {
-  Star,
-  Message01Icon,
-  ExternalLink,
-  Flame,
-  ArrowUpDown,
-  ArrowUp,
+  ArrowCounterClockwise,
   ArrowDown,
-  Search01Icon,
-  Close,
+  ArrowSquareOut,
+  ArrowsDownUp,
+  ArrowUp,
+  ChatCircle,
+  CircleNotch,
+  DownloadSimple,
+  MagnifyingGlass,
   SlidersHorizontal,
-  LoaderCircle,
-  Download01Icon,
-  RotateLeft01Icon,
-} from "@hugeicons/core-free-icons"
-import { Icon } from "@/lib/icons"
+  Star,
+  X,
+} from "@phosphor-icons/react"
 import { useApps, useKeywords } from "@/hooks/use-queries"
 import { exportAppsToCsv, scoreApps, type ScoredApp } from "@/lib/analytics"
 import { AppDetailSheet } from "@/components/analytics/app-detail-sheet"
 import {
-  LiveBadge,
   MomentumBar,
   OpportunityScore,
 } from "@/components/analytics/visual-primitives"
@@ -88,11 +85,11 @@ function SortIcon({
   sortKey: SortKey | null
   sortDir: SortDir
 }) {
-  if (sortKey !== column) return <Icon icon={ArrowUpDown} className="size-3 opacity-40" />
+  if (sortKey !== column) return <ArrowsDownUp className="size-3 opacity-40" />
   return sortDir === "asc" ? (
-    <Icon icon={ArrowUp} className="size-3 text-primary" />
+    <ArrowUp className="size-3 text-primary" />
   ) : (
-    <Icon icon={ArrowDown} className="size-3 text-primary" />
+    <ArrowDown className="size-3 text-primary" />
   )
 }
 
@@ -280,18 +277,14 @@ export default function ExplorerPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="animate-fade-in-up">
-        <div className="mb-2">
-          <LiveBadge label="Research mode" />
-        </div>
-        <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">App Explorer</h1>
+      <div className="space-y-1">
+        <h1 className="text-xl font-semibold tracking-tight">App Explorer</h1>
         <p className="text-sm text-muted-foreground">Search apps and refine with filters when you need them</p>
       </div>
 
       <div className="flex items-center gap-2">
         <div className="relative min-w-0 flex-1">
-          <Icon
-            icon={Search01Icon}
+          <MagnifyingGlass
             className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           />
           <Input
@@ -306,7 +299,7 @@ export default function ExplorerPage() {
               onClick={() => setFilters((p) => ({ ...p, search: "" }))}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
             >
-              <Icon icon={Close} className="size-3.5" />
+              <X className="size-3.5" />
             </button>
           )}
         </div>
@@ -314,7 +307,7 @@ export default function ExplorerPage() {
         <Popover open={filterOpen} onOpenChange={setFilterOpen}>
           <PopoverTrigger asChild>
             <Button variant="outline" className="h-10 shrink-0 gap-2">
-              <Icon icon={SlidersHorizontal} data-icon="inline-start" />
+              <SlidersHorizontal data-icon="inline-start" />
               Filter
               {activeFilterCount > 0 && (
                 <span className="flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
@@ -433,7 +426,7 @@ export default function ExplorerPage() {
 
             <div className="flex items-center justify-between border-t px-4 py-3">
               <Button variant="ghost" size="sm" onClick={clearFilters}>
-                <Icon icon={RotateLeft01Icon} data-icon="inline-start" />
+                <ArrowCounterClockwise data-icon="inline-start" />
                 Clear
               </Button>
               <Button size="sm" onClick={applyFilters}>
@@ -444,7 +437,7 @@ export default function ExplorerPage() {
         </Popover>
       </div>
 
-      <Card className="glass-card overflow-hidden">
+      <Card className="overflow-hidden">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">
@@ -459,7 +452,7 @@ export default function ExplorerPage() {
                     </span>
                   )}
                   {isFetching && !appsLoading && (
-                    <Icon icon={LoaderCircle} className="ml-2 inline size-4 animate-spin" />
+                    <CircleNotch className="ml-2 inline size-4 animate-spin" />
                   )}
                 </>
               )}
@@ -474,7 +467,7 @@ export default function ExplorerPage() {
                   }}
                   className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  <Icon icon={Close} className="size-3" />
+                  <X className="size-3" />
                   Clear sort
                 </button>
               )}
@@ -484,7 +477,7 @@ export default function ExplorerPage() {
                 onClick={() => exportAppsToCsv(sortedApps)}
                 disabled={sortedApps.length === 0}
               >
-                <Icon icon={Download01Icon} data-icon="inline-start" />
+                <DownloadSimple data-icon="inline-start" />
                 Export
               </Button>
               <Button
@@ -495,7 +488,7 @@ export default function ExplorerPage() {
                 className="h-7"
               >
                 {isFetching ? (
-                  <Icon icon={LoaderCircle} className="size-3 animate-spin" />
+                  <CircleNotch className="size-3 animate-spin" />
                 ) : (
                   "Refresh"
                 )}
@@ -512,7 +505,7 @@ export default function ExplorerPage() {
             </div>
           ) : sortedApps.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
-              <Icon icon={Search01Icon} className="size-10 opacity-40" />
+              <MagnifyingGlass className="size-10 opacity-40" />
               <p className="text-sm">No apps match your search or filters</p>
               <Button variant="outline" size="sm" onClick={clearFilters}>
                 Clear filters
@@ -634,7 +627,7 @@ export default function ExplorerPage() {
                       <TableCell>
                         {app.rating ? (
                           <div className="flex items-center gap-1">
-                            <Icon icon={Star} className="size-3.5 fill-current text-yellow-500" />
+                            <Star weight="fill" className="size-3.5 text-yellow-500" />
                             <span className="text-sm tabular-nums">{app.rating}</span>
                           </div>
                         ) : (
@@ -647,7 +640,7 @@ export default function ExplorerPage() {
                       <TableCell>
                         {app.recent_reviews_30_days > 0 ? (
                           <div className="flex items-center gap-1">
-                            <Icon icon={Message01Icon} className="size-3.5 text-muted-foreground" />
+                            <ChatCircle className="size-3.5 text-muted-foreground" />
                             <span className="tabular-nums">{app.recent_reviews_30_days}</span>
                           </div>
                         ) : (
@@ -679,7 +672,7 @@ export default function ExplorerPage() {
                           onClick={(event) => event.stopPropagation()}
                         >
                           <a href={app.url} target="_blank" rel="noopener noreferrer">
-                            <Icon icon={ExternalLink} className="size-3.5" />
+                            <ArrowSquareOut className="size-3.5" />
                           </a>
                         </Button>
                       </TableCell>
