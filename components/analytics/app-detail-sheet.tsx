@@ -67,7 +67,7 @@ export function AppDetailSheet({ app, open, onOpenChange }: AppDetailSheetProps)
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto border-primary/15 sm:max-w-md">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-primary/15 to-transparent" />
+        <div className="sr-only" />
 
         <SheetHeader className="relative">
           <SheetTitle className="pr-8 text-base leading-snug">{app.title}</SheetTitle>

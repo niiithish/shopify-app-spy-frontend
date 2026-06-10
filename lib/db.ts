@@ -130,16 +130,44 @@ function parseRow(row: TursoValue[]): AppResult {
   }
 }
 
-export async function getAllApps(): Promise<AppResult[]> {
+export async function getAllApps(options?: {
+  page?: number
+  limit?: number
+  search?: string
+}): Promise<{ apps: AppResult[]; total: number }> {
+  const page = options?.page ?? 1
+  const limit = options?.limit ?? 20
+  const search = options?.search?.trim()
+  const offset = (page - 1) * limit
+
+  let whereClause = ""
+  const countArgs: (string | number | null)[] = []
+  const dataArgs: (string | number | null)[] = []
+
+  if (search) {
+    whereClause = " WHERE (title LIKE ? OR keyword LIKE ?)"
+    const pattern = `%${search}%`
+    countArgs.push(pattern, pattern)
+    dataArgs.push(pattern, pattern)
+  }
+
+  const countData = await executeQuery(
+    `SELECT COUNT(*) FROM search_results${whereClause}`,
+    countArgs
+  )
+  const total = getInt(countData.results?.[0]?.response?.result?.rows?.[0]?.[0])
+
   const data = await executeQuery(
     `SELECT id, keyword, title, url, rating, review_count, price, 
             relevance_score, recent_reviews_30_days, trending_score, created_at, updated_at
-     FROM search_results
-     ORDER BY relevance_score DESC`
+     FROM search_results${whereClause}
+     ORDER BY relevance_score DESC
+     LIMIT ? OFFSET ?`,
+    [...dataArgs, limit, offset]
   )
 
   const rows = data.results?.[0]?.response?.result?.rows || []
-  return rows.map(parseRow)
+  return { apps: rows.map(parseRow), total }
 }
 
 export async function getAppById(id: number): Promise<AppResult | null> {
@@ -215,6 +243,7 @@ export async function getStats(): Promise<DatabaseStats> {
 export async function searchApps(
   filters: {
     keywords?: string[]
+    search?: string
     minRating?: number
     maxRating?: number
     minReviews?: number
@@ -224,58 +253,80 @@ export async function searchApps(
     priceType?: "free" | "paid" | "all"
     minTrendingScore?: number
     maxTrendingScore?: number
+    page?: number
+    limit?: number
   }
-): Promise<AppResult[]> {
-  let sql = `SELECT id, keyword, title, url, rating, review_count, price, 
-                    relevance_score, recent_reviews_30_days, trending_score, created_at, updated_at
-             FROM search_results`
+): Promise<{ apps: AppResult[]; total: number }> {
+  const page = filters.page ?? 1
+  const limit = filters.limit ?? 20
+  const search = filters.search?.trim()
+  const offset = (page - 1) * limit
+
+  let sql = `FROM search_results`
   const conditions: string[] = []
   const args: (string | number | null)[] = []
+  const countArgs: (string | number | null)[] = []
 
   if (filters.keywords && filters.keywords.length > 0) {
     const placeholders = filters.keywords.map(() => "?").join(", ")
     conditions.push(`keyword IN (${placeholders})`)
     args.push(...filters.keywords)
+    countArgs.push(...filters.keywords)
+  }
+
+  if (search) {
+    conditions.push("(title LIKE ? OR keyword LIKE ?)")
+    const pattern = `%${search}%`
+    args.push(pattern, pattern)
+    countArgs.push(pattern, pattern)
   }
 
   if (filters.minRating !== undefined && filters.minRating > 0) {
     conditions.push("CAST(rating AS REAL) >= ?")
     args.push(filters.minRating)
+    countArgs.push(filters.minRating)
   }
 
   if (filters.maxRating !== undefined && filters.maxRating < 5) {
     conditions.push("CAST(rating AS REAL) <= ?")
     args.push(filters.maxRating)
+    countArgs.push(filters.maxRating)
   }
 
   if (filters.minReviews !== undefined && filters.minReviews > 0) {
     conditions.push("CAST(review_count AS INTEGER) >= ?")
     args.push(filters.minReviews)
+    countArgs.push(filters.minReviews)
   }
 
   if (filters.maxReviews !== undefined && filters.maxReviews > 0) {
     conditions.push("CAST(review_count AS INTEGER) <= ?")
     args.push(filters.maxReviews)
+    countArgs.push(filters.maxReviews)
   }
 
   if (filters.minRecentReviews !== undefined && filters.minRecentReviews > 0) {
     conditions.push("recent_reviews_30_days >= ?")
     args.push(filters.minRecentReviews)
+    countArgs.push(filters.minRecentReviews)
   }
 
   if (filters.maxRecentReviews !== undefined && filters.maxRecentReviews > 0) {
     conditions.push("recent_reviews_30_days <= ?")
     args.push(filters.maxRecentReviews)
+    countArgs.push(filters.maxRecentReviews)
   }
 
   if (filters.minTrendingScore !== undefined && filters.minTrendingScore > 0) {
     conditions.push("trending_score >= ?")
     args.push(filters.minTrendingScore)
+    countArgs.push(filters.minTrendingScore)
   }
 
   if (filters.maxTrendingScore !== undefined && filters.maxTrendingScore < 100) {
     conditions.push("trending_score <= ?")
     args.push(filters.maxTrendingScore)
+    countArgs.push(filters.maxTrendingScore)
   }
 
   if (filters.priceType === "free") {
@@ -284,13 +335,25 @@ export async function searchApps(
     conditions.push("price NOT LIKE '%free%' AND price != '' AND price IS NOT NULL")
   }
 
-  if (conditions.length > 0) {
-    sql += " WHERE " + conditions.join(" AND ")
-  }
+  const whereClause = conditions.length > 0 ? " WHERE " + conditions.join(" AND ") : ""
 
-  sql += " ORDER BY relevance_score DESC"
+  // Get total count
+  const countData = await executeQuery(
+    `SELECT COUNT(*) ${sql}${whereClause}`,
+    countArgs
+  )
+  const total = getInt(countData.results?.[0]?.response?.result?.rows?.[0]?.[0])
 
-  const data = await executeQuery(sql, args)
-  const rows =  data.results?.[0]?.response?.result?.rows || []
-  return rows.map(parseRow)
+  // Get paginated results
+  const data = await executeQuery(
+    `SELECT id, keyword, title, url, rating, review_count, price, 
+            relevance_score, recent_reviews_30_days, trending_score, created_at, updated_at
+     ${sql}${whereClause}
+     ORDER BY relevance_score DESC
+     LIMIT ? OFFSET ?`,
+    [...args, limit, offset]
+  )
+
+  const rows = data.results?.[0]?.response?.result?.rows || []
+  return { apps: rows.map(parseRow), total }
 }

@@ -29,7 +29,8 @@ type SortMode = "recent_reviews" | "trending_score"
 export default function TrendingPage() {
   const [sortMode, setSortMode] = useState<SortMode>("trending_score")
 
-  const { data: apps = [], isLoading, isError, error, isFetching, refetch } = useApps()
+  const { data: paginated, isLoading, isError, error, isFetching, refetch } = useApps()
+  const apps = paginated?.apps ?? []
 
   // Sort and filter top 20 apps
   const sortedApps = useMemo(() => {
@@ -101,7 +102,7 @@ export default function TrendingPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="glass-card border-primary/20 bg-gradient-to-br from-primary/10 to-card">
+        <Card className="glass-card border-primary/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Hottest App</CardTitle>
             <Icon icon={Flame} className="animate-flame text-primary" />

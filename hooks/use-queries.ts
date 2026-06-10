@@ -19,6 +19,13 @@ export interface AppResult {
   updated_at?: string
 }
 
+export interface PaginatedResult<T> {
+  apps: T[]
+  total: number
+  page: number
+  limit: number
+}
+
 export interface KeywordCount {
   keyword: string
   count: number
@@ -73,16 +80,25 @@ export const statsQueries = {
 }
 
 // Fetch functions
-async function fetchAllApps(): Promise<AppResult[]> {
+async function fetchAllApps(): Promise<PaginatedResult<AppResult>> {
   const res = await fetch("/api/apps")
   if (!res.ok) throw new Error("Failed to fetch apps")
   const data = await res.json()
-  return data.apps
+  return { apps: data.apps, total: data.total, page: data.page, limit: data.limit }
 }
 
-async function fetchAppsByFilters(filters: AppFilters): Promise<AppResult[]> {
+async function fetchAppsByFilters(filters: AppFilters): Promise<PaginatedResult<AppResult>> {
   const params = new URLSearchParams()
   
+  if (filters.search) {
+    params.set("search", filters.search)
+  }
+  if (filters.page) {
+    params.set("page", filters.page.toString())
+  }
+  if (filters.limit) {
+    params.set("limit", filters.limit.toString())
+  }
   if (filters.keywords?.length) {
     params.set("keywords", filters.keywords.join(","))
   }
@@ -114,7 +130,7 @@ async function fetchAppsByFilters(filters: AppFilters): Promise<AppResult[]> {
   const res = await fetch(url)
   if (!res.ok) throw new Error("Failed to fetch apps")
   const data = await res.json()
-  return data.apps
+  return { apps: data.apps, total: data.total, page: data.page, limit: data.limit }
 }
 
 async function fetchKeywords(withCounts: boolean): Promise<string[] | KeywordCount[]> {
@@ -138,6 +154,12 @@ export function useApps(filters?: AppFilters) {
     queryKey: filters ? appKeys.list(filters) : appKeys.lists(),
     queryFn: () => filters ? fetchAppsByFilters(filters) : fetchAllApps(),
     staleTime: 5 * 60 * 1000,
+    select: (data) => ({
+      apps: data.apps,
+      total: data.total,
+      page: data.page,
+      limit: data.limit,
+    }),
   })
 }
 

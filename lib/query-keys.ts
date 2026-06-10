@@ -30,6 +30,7 @@ export const statsKeys = {
 // Type definitions for filters
 export interface AppFilters {
   keywords?: string[]
+  search?: string
   minRating?: number
   maxRating?: number
   minReviews?: number
@@ -39,4 +40,6 @@ export interface AppFilters {
   minTrendingScore?: number
   maxTrendingScore?: number
   priceType?: "all" | "free" | "paid"
+  page?: number
+  limit?: number
 }

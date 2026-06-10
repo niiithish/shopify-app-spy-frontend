@@ -65,7 +65,8 @@ const momentumChartConfig = {
 
 export default function DashboardPage() {
   const { data: stats, isLoading: statsLoading, isError: statsError } = useStats()
-  const { data: apps = [], isLoading: appsLoading } = useApps()
+  const { data: paginated, isLoading: appsLoading } = useApps()
+  const apps = paginated?.apps ?? []
   const [selectedApp, setSelectedApp] = useState<ScoredApp | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
@@ -522,7 +523,7 @@ function InsightCard({
   const content = (
     <Card
       className={cn(
-        "glass-card relative overflow-hidden bg-gradient-to-br to-card transition-all duration-300",
+        "glass-card relative overflow-hidden transition-all duration-300",
         accentClass,
         onClick && "hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
       )}

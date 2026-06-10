@@ -5,6 +5,13 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
 
+    // Pagination
+    const page = parseInt(searchParams.get("page") || "1", 10)
+    const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 100)
+
+    // Text search
+    const search = searchParams.get("search") || undefined
+
     // Parse filters from query params
     const keywords = searchParams.get("keywords")?.split(",").filter(Boolean) || undefined
     const minRating = searchParams.get("minRating")
@@ -33,8 +40,9 @@ export async function GET(request: Request) {
       : undefined
     const priceType = searchParams.get("priceType") as "free" | "paid" | "all" | undefined
 
-    // If no filters, return all apps
+    // Check if any filters (including search) are applied
     const hasFilters =
+      search ||
       keywords ||
       minRating ||
       maxRating ||
@@ -46,9 +54,10 @@ export async function GET(request: Request) {
       maxTrendingScore ||
       priceType
 
-    let apps
+    let result
     if (hasFilters) {
-      apps = await searchApps({
+      result = await searchApps({
+        search,
         keywords,
         minRating,
         maxRating,
@@ -59,12 +68,19 @@ export async function GET(request: Request) {
         minTrendingScore,
         maxTrendingScore,
         priceType,
+        page,
+        limit,
       })
     } else {
-      apps = await getAllApps()
+      result = await getAllApps({ page, limit })
     }
 
-    return NextResponse.json({ apps })
+    return NextResponse.json({
+      apps: result.apps,
+      total: result.total,
+      page,
+      limit,
+    })
   } catch (error) {
     console.error("Error fetching apps:", error)
     return NextResponse.json(

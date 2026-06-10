@@ -126,34 +126,50 @@ export default function ExplorerPage() {
 
   const { data: availableKeywords = [], isLoading: keywordsLoading } = useKeywords()
 
+  const [page, setPage] = useState(1)
+  const LIMIT = 20
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1)
+  }, [filters])
+
   const queryFilters = useMemo(() => {
     const result: {
       keywords?: string[]
+      search?: string
       minRating?: number
       minRecentReviews?: number
       minTrendingScore?: number
       priceType?: "all" | "free" | "paid"
+      page?: number
+      limit?: number
     } = {}
 
     if (filters.keywords.length > 0) result.keywords = filters.keywords
+    if (filters.search) result.search = filters.search
     if (filters.minRating) result.minRating = parseFloat(filters.minRating)
     if (filters.minReviews) result.minRecentReviews = parseInt(filters.minReviews, 10)
     if (filters.minTrending) result.minTrendingScore = parseFloat(filters.minTrending)
     if (filters.priceType !== "all") result.priceType = filters.priceType
+    result.page = page
+    result.limit = LIMIT
 
     return result
-  }, [filters])
-
-  const hasServerFilters = Object.keys(queryFilters).length > 0
+  }, [filters, page])
 
   const {
-    data: apps = [],
+    data: paginated,
     isLoading: appsLoading,
     isError,
     error,
     isFetching,
     refetch,
-  } = useApps(hasServerFilters ? queryFilters : undefined)
+  } = useApps(queryFilters)
+
+  const apps = paginated?.apps ?? []
+  const total = paginated?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / LIMIT))
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -167,15 +183,6 @@ export default function ExplorerPage() {
   const scoredApps = useMemo(() => scoreApps(apps), [apps])
   const sortedApps = useMemo(() => {
     let result = [...scoredApps]
-
-    if (filters.search.trim()) {
-      const q = filters.search.toLowerCase()
-      result = result.filter(
-        (a) =>
-          a.title.toLowerCase().includes(q) ||
-          a.keyword.toLowerCase().includes(q)
-      )
-    }
 
     if (!sortKey) return result
 
@@ -227,7 +234,7 @@ export default function ExplorerPage() {
     })
 
     return result
-  }, [scoredApps, sortKey, sortDir, filters.search])
+  }, [scoredApps, sortKey, sortDir])
 
   const activeFilterCount = countActiveFilters(filters)
 
@@ -445,7 +452,12 @@ export default function ExplorerPage() {
                 "Loading..."
               ) : (
                 <>
-                  {sortedApps.length} apps
+                  {total.toLocaleString()} apps
+                  {totalPages > 1 && (
+                    <span className="text-muted-foreground">
+                      {" "}· Page {page} of {totalPages}
+                    </span>
+                  )}
                   {isFetching && !appsLoading && (
                     <Icon icon={LoaderCircle} className="ml-2 inline size-4 animate-spin" />
                   )}
@@ -679,6 +691,58 @@ export default function ExplorerPage() {
           )}
         </CardContent>
       </Card>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            Showing {(page - 1) * LIMIT + 1}–{Math.min(page * LIMIT, total)} of {total.toLocaleString()} apps
+          </p>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || appsLoading}
+            >
+              Previous
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                // Show pages around current page
+                let pageNum: number
+                if (totalPages <= 5) {
+                  pageNum = i + 1
+                } else if (page <= 3) {
+                  pageNum = i + 1
+                } else if (page >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i
+                } else {
+                  pageNum = page - 2 + i
+                }
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={pageNum === page ? "default" : "outline"}
+                    size="sm"
+                    className="min-w-[2rem]"
+                    onClick={() => setPage(pageNum)}
+                  >
+                    {pageNum}
+                  </Button>
+                )
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages || appsLoading}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       <AppDetailSheet
         app={selectedApp}
