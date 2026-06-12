@@ -8,8 +8,8 @@ export function ThemeSwitcherControl() {
 
   return (
     <ThemeSwitcher
-      value={(theme as "light" | "dark" | "system" | undefined) ?? "system"}
-      onChange={setTheme}
+      value={theme as "light" | "dark" | "system"}
+      onChange={(t) => setTheme(t)}
     />
   )
 }

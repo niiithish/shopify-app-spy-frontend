@@ -1,7 +1,7 @@
 "use client"
 
 import { useControllableState } from "@radix-ui/react-use-controllable-state"
-import { Desktop, Moon, Sun } from "@phosphor-icons/react"
+import { Moon, Sun, Desktop } from "@phosphor-icons/react"
 import { motion } from "motion/react"
 import { useCallback, useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
@@ -14,14 +14,14 @@ const themes = [
     label: "Light theme",
   },
   {
-    key: "dark",
-    icon: Moon,
-    label: "Dark theme",
-  },
-  {
     key: "system",
     icon: Desktop,
     label: "System theme",
+  },
+  {
+    key: "dark",
+    icon: Moon,
+    label: "Dark theme",
   },
 ] as const satisfies ReadonlyArray<{
   key: "light" | "dark" | "system"
@@ -39,11 +39,11 @@ export type ThemeSwitcherProps = {
 export function ThemeSwitcher({
   value,
   onChange,
-  defaultValue = "system",
+  defaultValue = "light",
   className,
 }: ThemeSwitcherProps) {
   const [theme, setTheme] = useControllableState({
-    defaultProp: defaultValue,
+    defaultProp: defaultValue ?? "light",
     prop: value,
     onChange,
   })
@@ -61,13 +61,13 @@ export function ThemeSwitcher({
   }, [])
 
   if (!mounted) {
-    return <div className={cn("h-8 w-[5.5rem] rounded-full bg-muted/50", className)} />
+    return <div className={cn("h-7 w-[4rem] rounded-full bg-muted/50", className)} />
   }
 
   return (
     <div
       className={cn(
-        "relative isolate flex h-8 rounded-full bg-muted/50 p-1 ring-1 ring-border",
+        "relative isolate flex items-center h-7 rounded-full bg-muted/50 p-0.5 ring-1 ring-border",
         className
       )}
     >
@@ -78,7 +78,7 @@ export function ThemeSwitcher({
           <button
             aria-label={label}
             aria-pressed={isActive}
-            className="relative h-6 w-6 rounded-full"
+            className="relative h-5 w-5 rounded-full"
             key={key}
             onClick={() => handleThemeClick(key)}
             type="button"
@@ -92,7 +92,7 @@ export function ThemeSwitcher({
             )}
             <ThemeIcon
               className={cn(
-                "relative z-10 m-auto size-3.5",
+                "relative z-10 m-auto size-3",
                 isActive ? "text-foreground" : "text-muted-foreground"
               )}
             />

@@ -6,16 +6,17 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
-  Popover,
-  PopoverContent,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Table,
   TableBody,
@@ -31,9 +32,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
+import { Slider } from "@/components/ui/slider"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
-  ArrowCounterClockwise,
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import {
   ArrowDown,
   ArrowSquareOut,
   ArrowsDownUp,
@@ -41,12 +50,13 @@ import {
   ChatCircle,
   CircleNotch,
   DownloadSimple,
+  Heart,
   MagnifyingGlass,
   SlidersHorizontal,
   Star,
   X,
 } from "@phosphor-icons/react"
-import { useApps, useKeywords } from "@/hooks/use-queries"
+import { useApps, useKeywords, useFavoriteIds, useToggleFavorite } from "@/hooks/use-queries"
 import { exportAppsToCsv, scoreApps, type ScoredApp } from "@/lib/analytics"
 import { AppDetailSheet } from "@/components/analytics/app-detail-sheet"
 import {
@@ -58,9 +68,15 @@ interface Filters {
   keywords: string[]
   search: string
   minRating: string
+  maxRating: string
   minReviews: string
-  minTrending: string
+  maxReviews: string
+  minRecent: string
+  maxRecent: string
+  minRecentRatio: string
+  maxRecentRatio: string
   priceType: "all" | "free" | "paid"
+  favoritesOnly: boolean
 }
 
 type SortKey =
@@ -97,18 +113,30 @@ const DEFAULT_FILTERS: Filters = {
   keywords: [],
   search: "",
   minRating: "",
+  maxRating: "",
   minReviews: "",
-  minTrending: "",
+  maxReviews: "",
+  minRecent: "",
+  maxRecent: "",
+  minRecentRatio: "",
+  maxRecentRatio: "",
   priceType: "all",
+  favoritesOnly: false,
 }
 
 function countActiveFilters(filters: Filters) {
   return [
     filters.keywords.length > 0,
     filters.minRating !== "",
+    filters.maxRating !== "",
     filters.minReviews !== "",
-    filters.minTrending !== "",
+    filters.maxReviews !== "",
+    filters.minRecent !== "",
+    filters.maxRecent !== "",
+    filters.minRecentRatio !== "",
+    filters.maxRecentRatio !== "",
     filters.priceType !== "all",
+    filters.favoritesOnly,
   ].filter(Boolean).length
 }
 
@@ -122,23 +150,31 @@ export default function ExplorerPage() {
   const [sheetOpen, setSheetOpen] = useState(false)
 
   const { data: availableKeywords = [], isLoading: keywordsLoading } = useKeywords()
+  const { data: favoriteIds = [] } = useFavoriteIds()
+  const { mutate: toggleFavorite } = useToggleFavorite()
 
   const [page, setPage] = useState(1)
-  const LIMIT = 20
+  const [pageSize, setPageSize] = useState<number>(20)
 
-  // Reset to page 1 when filters change
+  // Reset to page 1 when filters or page size change
   useEffect(() => {
     setPage(1)
-  }, [filters])
+  }, [filters, pageSize])
 
   const queryFilters = useMemo(() => {
     const result: {
       keywords?: string[]
       search?: string
       minRating?: number
+      maxRating?: number
       minRecentReviews?: number
-      minTrendingScore?: number
+      maxRecentReviews?: number
+      minReviews?: number
+      maxReviews?: number
+      minRecentReviewRatio?: number
+      maxRecentReviewRatio?: number
       priceType?: "all" | "free" | "paid"
+      favoritesOnly?: boolean
       page?: number
       limit?: number
     } = {}
@@ -146,14 +182,20 @@ export default function ExplorerPage() {
     if (filters.keywords.length > 0) result.keywords = filters.keywords
     if (filters.search) result.search = filters.search
     if (filters.minRating) result.minRating = parseFloat(filters.minRating)
-    if (filters.minReviews) result.minRecentReviews = parseInt(filters.minReviews, 10)
-    if (filters.minTrending) result.minTrendingScore = parseFloat(filters.minTrending)
+    if (filters.maxRating) result.maxRating = parseFloat(filters.maxRating)
+    if (filters.minReviews) result.minReviews = parseInt(filters.minReviews, 10)
+    if (filters.maxReviews) result.maxReviews = parseInt(filters.maxReviews, 10)
+    if (filters.minRecent) result.minRecentReviews = parseInt(filters.minRecent, 10)
+    if (filters.maxRecent) result.maxRecentReviews = parseInt(filters.maxRecent, 10)
+    if (filters.minRecentRatio) result.minRecentReviewRatio = parseFloat(filters.minRecentRatio)
+    if (filters.maxRecentRatio) result.maxRecentReviewRatio = parseFloat(filters.maxRecentRatio)
     if (filters.priceType !== "all") result.priceType = filters.priceType
+    if (filters.favoritesOnly) result.favoritesOnly = true
     result.page = page
-    result.limit = LIMIT
+    result.limit = pageSize
 
     return result
-  }, [filters, page])
+  }, [filters, page, pageSize])
 
   const {
     data: paginated,
@@ -166,7 +208,7 @@ export default function ExplorerPage() {
 
   const apps = paginated?.apps ?? []
   const total = paginated?.total ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / LIMIT))
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -178,6 +220,7 @@ export default function ExplorerPage() {
   }
 
   const scoredApps = useMemo(() => scoreApps(apps), [apps])
+
   const sortedApps = useMemo(() => {
     let result = [...scoredApps]
 
@@ -304,8 +347,8 @@ export default function ExplorerPage() {
           )}
         </div>
 
-        <Popover open={filterOpen} onOpenChange={setFilterOpen}>
-          <PopoverTrigger asChild>
+        <Dialog open={filterOpen} onOpenChange={setFilterOpen}>
+          <DialogTrigger asChild>
             <Button variant="outline" className="h-10 shrink-0 gap-2">
               <SlidersHorizontal data-icon="inline-start" />
               Filter
@@ -315,148 +358,323 @@ export default function ExplorerPage() {
                 </span>
               )}
             </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-80 p-0">
-            <PopoverHeader className="border-b px-4 py-3">
-              <PopoverTitle>Filters</PopoverTitle>
-            </PopoverHeader>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Filters</DialogTitle>
+            </DialogHeader>
 
-            <div className="flex max-h-[min(60vh,420px)] flex-col gap-4 overflow-y-auto p-4">
-              <div className="flex flex-col gap-2">
-                <Label>Keywords</Label>
-                {keywordsLoading ? (
-                  <div className="flex flex-col gap-2">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <Skeleton key={i} className="h-5 w-full" />
-                    ))}
+            <div className="grid gap-3">
+              {/* Recent review ratio - range slider */}
+              <div className="flex items-center justify-between">
+                <Label>Recent review ratio (30d/total)</Label>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {draftFilters.minRecentRatio || draftFilters.maxRecentRatio
+                    ? `${draftFilters.minRecentRatio || 0}%–${draftFilters.maxRecentRatio || 100}%`
+                    : "Any"}
+                </span>
+              </div>
+              <Slider
+                min={0}
+                max={100}
+                step={1}
+                value={[
+                  draftFilters.minRecentRatio ? parseInt(draftFilters.minRecentRatio, 10) : 0,
+                  draftFilters.maxRecentRatio ? parseInt(draftFilters.maxRecentRatio, 10) : 100,
+                ]}
+                onValueChange={([min, max]) =>
+                  setDraftFilters((p) => ({
+                    ...p,
+                    minRecentRatio: min === 0 ? "" : min.toString(),
+                    maxRecentRatio: max === 100 ? "" : max.toString(),
+                  }))
+                }
+              />
+
+              {/* Number inputs - each row with min/max */}
+              <div className="flex flex-col gap-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="min-recent">Min recent (30d)</Label>
+                    <Input
+                      id="min-recent"
+                      type="number"
+                      placeholder="0"
+                      min={0}
+                      value={draftFilters.minRecent}
+                      onChange={(e) =>
+                        setDraftFilters((p) => ({ ...p, minRecent: e.target.value }))
+                      }
+                    />
                   </div>
-                ) : availableKeywords.length === 0 ? (
-                  <p className="text-muted-foreground">No keywords available</p>
-                ) : (
-                  <div className="flex max-h-36 flex-col gap-2 overflow-y-auto pr-1">
-                    {(availableKeywords as string[]).map((keyword) => {
-                      const checked = draftFilters.keywords.includes(keyword)
-                      return (
-                        <label
-                          key={keyword}
-                          className="flex cursor-pointer items-center gap-2 capitalize"
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="max-recent">Max recent (30d)</Label>
+                    <Input
+                      id="max-recent"
+                      type="number"
+                      placeholder="0"
+                      min={0}
+                      value={draftFilters.maxRecent}
+                      onChange={(e) =>
+                        setDraftFilters((p) => ({ ...p, maxRecent: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="min-reviews">Min total reviews</Label>
+                    <Input
+                      id="min-reviews"
+                      type="number"
+                      placeholder="0"
+                      min={0}
+                      value={draftFilters.minReviews}
+                      onChange={(e) =>
+                        setDraftFilters((p) => ({ ...p, minReviews: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="max-reviews">Max total reviews</Label>
+                    <Input
+                      id="max-reviews"
+                      type="number"
+                      placeholder="0"
+                      min={0}
+                      value={draftFilters.maxReviews}
+                      onChange={(e) =>
+                        setDraftFilters((p) => ({ ...p, maxReviews: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="min-rating">Min rating</Label>
+                    <Input
+                      id="min-rating"
+                      type="number"
+                      placeholder="0"
+                      min={0}
+                      max={5}
+                      step={0.1}
+                      value={draftFilters.minRating}
+                      onChange={(e) =>
+                        setDraftFilters((p) => ({ ...p, minRating: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="max-rating">Max rating</Label>
+                    <Input
+                      id="max-rating"
+                      type="number"
+                      placeholder="5"
+                      min={0}
+                      max={5}
+                      step={0.1}
+                      value={draftFilters.maxRating}
+                      onChange={(e) =>
+                        setDraftFilters((p) => ({ ...p, maxRating: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label>Price</Label>
+                  <ToggleGroup
+                    type="single"
+                    variant="outline"
+                    spacing={0}
+                    className="h-9"
+                    value={draftFilters.priceType}
+                    onValueChange={(v) => {
+                      if (v) {
+                        setDraftFilters((p) => ({
+                          ...p,
+                          priceType: v as "all" | "free" | "paid",
+                        }))
+                      }
+                    }}
+                  >
+                    <ToggleGroupItem value="all">All</ToggleGroupItem>
+                    <ToggleGroupItem value="free">Free</ToggleGroupItem>
+                    <ToggleGroupItem value="paid">Paid</ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
+              </div>
+
+              {/* Favorites toggle */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="justify-start gap-2"
+                onClick={() =>
+                  setDraftFilters((p) => ({ ...p, favoritesOnly: !p.favoritesOnly }))
+                }
+              >
+                <Heart
+                  weight={draftFilters.favoritesOnly ? "fill" : "regular"}
+                  className={draftFilters.favoritesOnly ? "text-red-500" : "text-muted-foreground"}
+                />
+                {draftFilters.favoritesOnly ? "Favorites only" : "Show favorites only"}
+                {draftFilters.favoritesOnly && (
+                  <X
+                    className="ml-auto size-3 opacity-50"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setDraftFilters((p) => ({ ...p, favoritesOnly: false }))
+                    }}
+                  />
+                )}
+              </Button>
+
+              {/* Keywords */}
+              <div className="flex flex-col gap-1.5">
+                <Label>Keywords</Label>
+                {draftFilters.keywords.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {draftFilters.keywords.slice(0, 3).map((k) => (
+                      <Badge key={k} variant="secondary" className="capitalize gap-1">
+                        {k}
+                        <button
+                          type="button"
+                          onClick={() => toggleDraftKeyword(k)}
+                          className="p-0.5 hover:bg-foreground/10"
+                          aria-label={`Remove ${k}`}
                         >
-                          <Checkbox
-                            checked={checked}
-                            onCheckedChange={() => toggleDraftKeyword(keyword)}
-                          />
-                          <span>{keyword}</span>
-                        </label>
-                      )
-                    })}
+                          <X className="size-2.5" />
+                        </button>
+                      </Badge>
+                    ))}
+                    {draftFilters.keywords.length > 3 && (
+                      <Badge variant="secondary">+{draftFilters.keywords.length - 3}</Badge>
+                    )}
                   </div>
                 )}
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="min-rating">Min rating</Label>
-                  <Input
-                    id="min-rating"
-                    type="number"
-                    placeholder="0"
-                    min={0}
-                    max={5}
-                    step={0.1}
-                    value={draftFilters.minRating}
-                    onChange={(e) =>
-                      setDraftFilters((p) => ({ ...p, minRating: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="min-reviews">Min reviews (30d)</Label>
-                  <Input
-                    id="min-reviews"
-                    type="number"
-                    placeholder="0"
-                    min={0}
-                    value={draftFilters.minReviews}
-                    onChange={(e) =>
-                      setDraftFilters((p) => ({ ...p, minReviews: e.target.value }))
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="min-trending">Min trending %</Label>
-                <Input
-                  id="min-trending"
-                  type="number"
-                  placeholder="0"
-                  min={0}
-                  max={100}
-                  value={draftFilters.minTrending}
-                  onChange={(e) =>
-                    setDraftFilters((p) => ({ ...p, minTrending: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label>Price</Label>
-                <Select
-                  value={draftFilters.priceType}
-                  onValueChange={(v) =>
-                    setDraftFilters((p) => ({
-                      ...p,
-                      priceType: v as "all" | "free" | "paid",
-                    }))
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="free">Free</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="justify-between"
+                      disabled={keywordsLoading || availableKeywords.length === 0}
+                    >
+                      {keywordsLoading
+                        ? "Loading..."
+                        : availableKeywords.length === 0
+                          ? "No keywords"
+                          : draftFilters.keywords.length > 0
+                            ? "Change keywords"
+                            : "Select keywords"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="start"
+                    side="right"
+                    className="w-72 p-0"
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                  >
+                    <Command shouldFilter>
+                      <CommandInput placeholder="Search keywords..." />
+                      <CommandList>
+                        <CommandEmpty>No keywords found.</CommandEmpty>
+                        <CommandGroup>
+                          {(availableKeywords as string[]).map((keyword) => {
+                            const selected = draftFilters.keywords.includes(keyword)
+                            return (
+                              <CommandItem
+                                key={keyword}
+                                value={keyword}
+                                checked={selected}
+                                onSelect={() => toggleDraftKeyword(keyword)}
+                                className="capitalize"
+                              >
+                                {keyword}
+                              </CommandItem>
+                            )
+                          })}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-t px-4 py-3">
+            <DialogFooter>
               <Button variant="ghost" size="sm" onClick={clearFilters}>
-                <ArrowCounterClockwise data-icon="inline-start" />
                 Clear
               </Button>
               <Button size="sm" onClick={applyFilters}>
-                Apply filters
+                Apply
               </Button>
-            </div>
-          </PopoverContent>
-        </Popover>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card className="overflow-hidden">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">
-              {appsLoading ? (
-                "Loading..."
-              ) : (
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-base">
+                {appsLoading ? (
+                  "Loading..."
+                ) : (
+                  <>
+                    {total.toLocaleString()} apps
+                    {isFetching && !appsLoading && (
+                      <CircleNotch className="ml-2 inline size-4 animate-spin" />
+                    )}
+                  </>
+                )}
+              </CardTitle>
+              {total > 0 && !appsLoading && (
                 <>
-                  {total.toLocaleString()} apps
-                  {totalPages > 1 && (
-                    <span className="text-muted-foreground">
-                      {" "}· Page {page} of {totalPages}
-                    </span>
-                  )}
-                  {isFetching && !appsLoading && (
-                    <CircleNotch className="ml-2 inline size-4 animate-spin" />
-                  )}
+                  <span className="text-muted-foreground">·</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                  >
+                    Prev
+                  </Button>
+                  <span className="text-xs tabular-nums text-muted-foreground min-w-[2.5rem] text-center">
+                    {page}/{totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                  >
+                    Next
+                  </Button>
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(v) => setPageSize(parseInt(v, 10))}
+                  >
+                    <SelectTrigger className="h-7 w-[62px] [&>span]:text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </>
               )}
-            </CardTitle>
+            </div>
             <div className="flex items-center gap-2">
               {sortKey && (
                 <button
@@ -516,6 +734,9 @@ export default function ExplorerPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-10">
+                      <span className="sr-only">Favorite</span>
+                    </TableHead>
                     <TableHead>
                       <button
                         type="button"
@@ -616,6 +837,27 @@ export default function ExplorerPage() {
                       className="group row-hover-lift cursor-pointer"
                       onClick={() => openApp(app)}
                     >
+                      <TableCell className="w-10">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const isFav = favoriteIds.includes(app.id)
+                            toggleFavorite({ appId: app.id, isFavorited: isFav })
+                          }}
+                          className="flex items-center justify-center"
+                          aria-label={favoriteIds.includes(app.id) ? "Remove from favorites" : "Add to favorites"}
+                        >
+                          <Heart
+                            weight={favoriteIds.includes(app.id) ? "fill" : "regular"}
+                            className={
+                              favoriteIds.includes(app.id)
+                                ? "size-4 text-red-500"
+                                : "size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-60"
+                            }
+                          />
+                        </button>
+                      </TableCell>
                       <TableCell className="max-w-[240px] truncate font-medium">
                         {app.title}
                       </TableCell>
@@ -686,54 +928,30 @@ export default function ExplorerPage() {
       </Card>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            Showing {(page - 1) * LIMIT + 1}–{Math.min(page * LIMIT, total)} of {total.toLocaleString()} apps
-          </p>
-          <div className="flex items-center gap-1.5">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1 || appsLoading}
-            >
-              Previous
-            </Button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                // Show pages around current page
-                let pageNum: number
-                if (totalPages <= 5) {
-                  pageNum = i + 1
-                } else if (page <= 3) {
-                  pageNum = i + 1
-                } else if (page >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i
-                } else {
-                  pageNum = page - 2 + i
-                }
-                return (
-                  <Button
-                    key={pageNum}
-                    variant={pageNum === page ? "default" : "outline"}
-                    size="sm"
-                    className="min-w-[2rem]"
-                    onClick={() => setPage(pageNum)}
-                  >
-                    {pageNum}
-                  </Button>
-                )
-              })}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages || appsLoading}
-            >
-              Next
-            </Button>
-          </div>
+        <div className="flex items-center justify-center gap-1 pt-2">
+          {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+            let pageNum: number
+            if (totalPages <= 7) {
+              pageNum = i + 1
+            } else if (page <= 4) {
+              pageNum = i + 1
+            } else if (page >= totalPages - 3) {
+              pageNum = totalPages - 6 + i
+            } else {
+              pageNum = page - 3 + i
+            }
+            return (
+              <Button
+                key={pageNum}
+                variant={pageNum === page ? "default" : "outline"}
+                size="sm"
+                className="min-w-[2rem] h-7"
+                onClick={() => setPage(pageNum)}
+              >
+                {pageNum}
+              </Button>
+            )
+          })}
         </div>
       )}
 

@@ -6,6 +6,7 @@ import {
   ArrowSquareOut,
   ChatCircle,
   Flame,
+  Heart,
   Star,
 } from "@phosphor-icons/react"
 import {
@@ -20,6 +21,7 @@ import { Button } from "@/components/ui/button"
 import { Icon, type PhosphorIcon } from "@/lib/icons"
 import type { ScoredApp } from "@/lib/analytics"
 import { OpportunityScore, SignalPill } from "@/components/analytics/visual-primitives"
+import { useFavoriteIds, useToggleFavorite } from "@/hooks/use-queries"
 
 interface AppDetailSheetProps {
   app: ScoredApp | null
@@ -56,6 +58,9 @@ function StatTile({
 }
 
 export function AppDetailSheet({ app, open, onOpenChange }: AppDetailSheetProps) {
+  const { data: favoriteIds = [] } = useFavoriteIds()
+  const { mutate: toggleFavorite } = useToggleFavorite()
+
   if (!app) return null
 
   const totalReviews = parseInt(app.review_count.replace(/,/g, ""), 10) || 0
@@ -70,7 +75,26 @@ export function AppDetailSheet({ app, open, onOpenChange }: AppDetailSheetProps)
         <div className="sr-only" />
 
         <SheetHeader className="relative">
-          <SheetTitle className="pr-8 text-base leading-snug">{app.title}</SheetTitle>
+          <SheetTitle className="pr-8 text-base leading-snug">
+            <span className="flex items-center gap-2">
+              {app.title}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const isFav = favoriteIds.includes(app.id)
+                  toggleFavorite({ appId: app.id, isFavorited: isFav })
+                }}
+                className="-mr-1 -ml-0.5 inline-flex items-center justify-center rounded-md p-1 transition-colors hover:bg-muted"
+                aria-label={favoriteIds.includes(app.id) ? "Remove from favorites" : "Add to favorites"}
+              >
+                <Heart
+                  weight={favoriteIds.includes(app.id) ? "fill" : "regular"}
+                  className={favoriteIds.includes(app.id) ? "size-4 text-red-500" : "size-4 text-muted-foreground"}
+                />
+              </button>
+            </span>
+          </SheetTitle>
           <SheetDescription className="flex items-center gap-2 capitalize">
             <Badge variant="outline">{app.keyword}</Badge>
             Quick overview

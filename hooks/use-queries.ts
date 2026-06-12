@@ -1,7 +1,7 @@
 "use client"
 
-import { useQuery, queryOptions } from "@tanstack/react-query"
-import { appKeys, keywordKeys, statsKeys, analyticsKeys, type AppFilters } from "@/lib/query-keys"
+import { useQuery, useMutation, useQueryClient, queryOptions } from "@tanstack/react-query"
+import { appKeys, keywordKeys, statsKeys, analyticsKeys, favoriteKeys, type AppFilters } from "@/lib/query-keys"
 import type {
   CategoryInsight,
   MarketSummary,
@@ -141,8 +141,23 @@ async function fetchAppsByFilters(filters: AppFilters): Promise<PaginatedResult<
   if (filters.maxTrendingScore !== undefined && filters.maxTrendingScore < 100) {
     params.set("maxTrendingScore", filters.maxTrendingScore.toString())
   }
+  if (filters.minRecentReviewRatio !== undefined && filters.minRecentReviewRatio > 0) {
+    params.set("minRecentReviewRatio", filters.minRecentReviewRatio.toString())
+  }
+  if (filters.maxRecentReviewRatio !== undefined && filters.maxRecentReviewRatio < 100) {
+    params.set("maxRecentReviewRatio", filters.maxRecentReviewRatio.toString())
+  }
+  if (filters.minReviews !== undefined && filters.minReviews > 0) {
+    params.set("minReviews", filters.minReviews.toString())
+  }
+  if (filters.maxReviews !== undefined && filters.maxReviews > 0) {
+    params.set("maxReviews", filters.maxReviews.toString())
+  }
   if (filters.priceType && filters.priceType !== "all") {
     params.set("priceType", filters.priceType)
+  }
+  if (filters.favoritesOnly) {
+    params.set("favoritesOnly", "true")
   }
 
   const queryString = params.toString()
@@ -213,5 +228,55 @@ export function useMarketAnalytics() {
     queryFn: fetchMarketAnalytics,
     staleTime: 5 * 60 * 1000,
     refetchOnMount: true,
+  })
+}
+
+// ──────────────────────────────────────────────
+// Favorites
+// ──────────────────────────────────────────────
+
+async function fetchFavoriteIds(): Promise<number[]> {
+  const res = await fetch("/api/favorites")
+  if (!res.ok) throw new Error("Failed to fetch favorites")
+  const data = await res.json()
+  return data.favorites
+}
+
+export function useFavoriteIds() {
+  return useQuery<number[]>({
+    queryKey: favoriteKeys.list(),
+    queryFn: fetchFavoriteIds,
+    staleTime: 60 * 1000,
+  })
+}
+
+export function useToggleFavorite() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      appId,
+      isFavorited,
+    }: {
+      appId: number
+      isFavorited: boolean
+    }) => {
+      if (isFavorited) {
+        const res = await fetch(`/api/favorites?appId=${appId}`, {
+          method: "DELETE",
+        })
+        if (!res.ok) throw new Error("Failed to remove favorite")
+      } else {
+        const res = await fetch("/api/favorites", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ appId }),
+        })
+        if (!res.ok) throw new Error("Failed to add favorite")
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: favoriteKeys.all })
+    },
   })
 }

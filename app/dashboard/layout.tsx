@@ -45,18 +45,18 @@ function AppSidebar() {
   const pathname = usePathname()
 
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon">
       <SidebarHeader className="px-2 py-3">
         <div className="flex items-center gap-2">
           <img src="/logo.svg" alt="Shopify Spy" className="size-8 shrink-0" />
-          <div className="min-w-0 flex flex-col">
+          <div className="min-w-0 flex flex-col group-data-[collapsible=icon]:hidden">
             <span className="truncate text-sm font-semibold leading-none">Shopify Spy</span>
             <span className="truncate text-[10px] text-muted-foreground">App intelligence</span>
           </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarMenu>
+        <SidebarMenu className="group-data-[collapsible=icon]:items-center">
           {navItems.map((item) => (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
@@ -74,7 +74,7 @@ function AppSidebar() {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
-        <SidebarMenu>
+        <SidebarMenu className="group-data-[collapsible=icon]:items-center">
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip="Settings">
               <Link href="/dashboard/settings">

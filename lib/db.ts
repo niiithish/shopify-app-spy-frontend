@@ -235,6 +235,45 @@ export async function getKeywordCounts(): Promise<KeywordCount[]> {
   }))
 }
 
+// ──────────────────────────────────────────────
+// Favorites
+// ──────────────────────────────────────────────
+
+export async function initFavoritesTable(): Promise<void> {
+  await executeQuery(
+    `CREATE TABLE IF NOT EXISTS favorites (
+      app_id INTEGER PRIMARY KEY,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`
+  )
+}
+
+export async function getFavoriteIds(): Promise<number[]> {
+  const data = await executeQuery(
+    `SELECT app_id FROM favorites ORDER BY created_at DESC`
+  )
+  const rows = data.results?.[0]?.response?.result?.rows || []
+  return rows.map((row: TursoValue[]) => getInt(row[0]))
+}
+
+export async function addFavorite(appId: number): Promise<void> {
+  await executeQuery(
+    `INSERT OR IGNORE INTO favorites (app_id) VALUES (?)`,
+    [appId]
+  )
+}
+
+export async function removeFavorite(appId: number): Promise<void> {
+  await executeQuery(
+    `DELETE FROM favorites WHERE app_id = ?`,
+    [appId]
+  )
+}
+
+// ──────────────────────────────────────────────
+// Stats
+// ──────────────────────────────────────────────
+
 export async function getStats(): Promise<DatabaseStats> {
   const appsData = await executeQuery(`SELECT COUNT(*) FROM search_results`)
   const totalApps = getInt(appsData.results?.[0]?.response?.result?.rows?.[0]?.[0])
@@ -265,6 +304,9 @@ export async function searchApps(
     priceType?: "free" | "paid" | "all"
     minTrendingScore?: number
     maxTrendingScore?: number
+    minRecentReviewRatio?: number
+    maxRecentReviewRatio?: number
+    favoritesOnly?: boolean
     page?: number
     limit?: number
   }
@@ -341,10 +383,33 @@ export async function searchApps(
     countArgs.push(filters.maxTrendingScore)
   }
 
+  if (filters.minRecentReviewRatio !== undefined && filters.minRecentReviewRatio > 0) {
+    // Ratio = recent_reviews_30_days * 100 / total review_count (in %).
+    // Guard against division by zero with NULLIF so apps with 0 reviews don't match
+    // (NULL < anything is unknown, which excludes the row from a >= filter).
+    conditions.push(
+      "(CAST(recent_reviews_30_days AS REAL) * 100.0 / NULLIF(CAST(review_count AS INTEGER), 0)) >= ?"
+    )
+    args.push(filters.minRecentReviewRatio)
+    countArgs.push(filters.minRecentReviewRatio)
+  }
+
+  if (filters.maxRecentReviewRatio !== undefined && filters.maxRecentReviewRatio < 100) {
+    conditions.push(
+      "(CAST(recent_reviews_30_days AS REAL) * 100.0 / NULLIF(CAST(review_count AS INTEGER), 0)) <= ?"
+    )
+    args.push(filters.maxRecentReviewRatio)
+    countArgs.push(filters.maxRecentReviewRatio)
+  }
+
   if (filters.priceType === "free") {
     conditions.push("(price LIKE '%free%' OR price = '' OR price IS NULL)")
   } else if (filters.priceType === "paid") {
     conditions.push("price NOT LIKE '%free%' AND price != '' AND price IS NOT NULL")
+  }
+
+  if (filters.favoritesOnly) {
+    conditions.push("id IN (SELECT app_id FROM favorites)")
   }
 
   const whereClause = conditions.length > 0 ? " WHERE " + conditions.join(" AND ") : ""

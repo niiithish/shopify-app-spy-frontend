@@ -38,7 +38,14 @@ export async function GET(request: Request) {
     const maxTrendingScore = searchParams.get("maxTrendingScore")
       ? parseFloat(searchParams.get("maxTrendingScore")!)
       : undefined
+    const minRecentReviewRatio = searchParams.get("minRecentReviewRatio")
+      ? parseFloat(searchParams.get("minRecentReviewRatio")!)
+      : undefined
+    const maxRecentReviewRatio = searchParams.get("maxRecentReviewRatio")
+      ? parseFloat(searchParams.get("maxRecentReviewRatio")!)
+      : undefined
     const priceType = searchParams.get("priceType") as "free" | "paid" | "all" | undefined
+    const favoritesOnly = searchParams.get("favoritesOnly") === "true"
 
     // Check if any filters (including search) are applied
     const hasFilters =
@@ -52,7 +59,10 @@ export async function GET(request: Request) {
       maxRecentReviews ||
       minTrendingScore ||
       maxTrendingScore ||
-      priceType
+      minRecentReviewRatio ||
+      maxRecentReviewRatio ||
+      priceType ||
+      favoritesOnly
 
     let result
     if (hasFilters) {
@@ -67,7 +77,10 @@ export async function GET(request: Request) {
         maxRecentReviews,
         minTrendingScore,
         maxTrendingScore,
+        minRecentReviewRatio,
+        maxRecentReviewRatio,
         priceType,
+        favoritesOnly,
         page,
         limit,
       })

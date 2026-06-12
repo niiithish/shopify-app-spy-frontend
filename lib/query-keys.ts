@@ -33,6 +33,13 @@ export const analyticsKeys = {
   market: () => [...analyticsKeys.all, "market"] as const,
 }
 
+// Favorites query keys
+export const favoriteKeys = {
+  all: ["favorites"] as const,
+  lists: () => [...favoriteKeys.all, "list"] as const,
+  list: () => [...favoriteKeys.lists()] as const,
+}
+
 // Type definitions for filters
 export interface AppFilters {
   keywords?: string[]
@@ -45,7 +52,10 @@ export interface AppFilters {
   maxRecentReviews?: number
   minTrendingScore?: number
   maxTrendingScore?: number
+  minRecentReviewRatio?: number
+  maxRecentReviewRatio?: number
   priceType?: "all" | "free" | "paid"
+  favoritesOnly?: boolean
   page?: number
   limit?: number
 }
